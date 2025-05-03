@@ -100,10 +100,10 @@
             return { x: p1.x + diff.x * t, y: p1.y + diff.y * t };
         }
 
+        
         function tick() {
             Engine.update(engine, cap(Date.now() - prevTime, 1000 / 30));
             let delta = engine.timing.lastDelta;
-            Render.run(render);
 
             // TODO: Investigate cause of degredation over time.
             // TODO: draw cursor coordinates over cursor for debugging.
@@ -251,6 +251,7 @@
             window.requestAnimationFrame(tick);
         }
         window.requestAnimationFrame(tick);
+        Render.run(render);
     </script>
 </body>
 </html>
