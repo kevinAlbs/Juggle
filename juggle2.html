@@ -1,17 +1,22 @@
+<!--
+Test: Bezier curve movement.
+Results: I don't like it. Non-uniform acceleration. Not intuitive movement.
+-->
 <html>
 <head>
     <style type="text/css">
     </style>
 </head>
 <body>
-    <canvas width="600" height="400"></canvas>
+    <canvas></canvas>
     <script src="matter.js"></script>
     <script>
         // module aliases
         var Engine = Matter.Engine,
             Render = Matter.Render,
             Bodies = Matter.Bodies,
-            Composite = Matter.Composite;
+            Composite = Matter.Composite,
+            Events = Matter.Events;
 
         // create an engine
         var engine = Engine.create({timing: {timeScale: .8}});
@@ -23,6 +28,7 @@
         });
 
         let hand_left = {
+            t: .5,
             radius: 10,
             ang: Math.PI / 2,
             vel: 0,
@@ -95,45 +101,43 @@
             }
             return val;
         }
+
         function interpolate(p1, p2, t) {
             let diff = { x: p2.x - p1.x, y: p2.y - p1.y };
             return { x: p1.x + diff.x * t, y: p1.y + diff.y * t };
         }
 
-        
-        function tick() {
-            Engine.update(engine, cap(Date.now() - prevTime, 1000 / 30));
-            let delta = engine.timing.lastDelta;
+        function get_curve_point_left (t) {
+            let p1 = { x: 50, y: 350 };
+            let p2 = { x: 350, y: 500 };
+            let ctrl = { x: 75, y: 450 };
 
-            // TODO: Investigate cause of degredation over time.
-            // TODO: draw cursor coordinates over cursor for debugging.
-            let p1 = { x: 100, y: 100 };
-            let p2 = { x: 200, y: 150 };
-            let ctrl = { x: 125, y: 50 };
+            let ctrl_start = interpolate(p1, ctrl, t);
+            let ctrl_end = interpolate(ctrl, p2, t);
+            return interpolate(ctrl_start, ctrl_end, t);
+        }
+
+        Events.on(render, "afterRender", () => {
             let t = 0;
-            const segments = 10;
+            const segments = 100;
             for (var i = 0; i < segments; i++) {
-                let ctrl_start = interpolate(p1, ctrl, t);
-                let ctrl_end = interpolate(ctrl, p2, t);
-                let start = interpolate(ctrl_start, ctrl_end, t);
+                let start = get_curve_point_left (t);
                 t += 1 / segments;
-                ctrl_start = interpolate(p1, ctrl, t);
-                ctrl_end = interpolate(ctrl, p2, t);
-                let end = interpolate(ctrl_start, ctrl_end, t);
+                let end = get_curve_point_left (t);
 
                 render.context.beginPath();
                 render.context.lineTo(start.x, start.y);
                 render.context.lineTo(end.x, end.y);
                 render.context.stroke();
             }
+        });
+        
+        function tick() {
+            Engine.update(engine, cap(Date.now() - prevTime, 1000 / 30));
+            let delta = engine.timing.lastDelta;
 
-            // TODO: draw bezier curve where I want it.
-            {
-                render.context.beginPath();
-                render.context.lineTo(100,100);
-                render.context.lineTo(200,200);
-                render.context.stroke();
-            }
+            // TODO: draw cursor coordinates over cursor for debugging.
+
 
             // Update physics:
             {
@@ -156,17 +160,7 @@
 
                 // Left hand:
                 {
-                    hand_left.ang += delta * hand_left.vel;
-                    if (hand_left.ang > Math.PI) {
-                        hand_left.ang = Math.PI;
-                    }
-                    if (hand_left.ang < 0) {
-                        hand_left.ang = 0;
-                    }
-                    hand_left.pos.x = hand_left.handle.x + Math.cos(hand_left.ang) * hand_left.handle.radius;
-                    hand_left.pos.y = hand_left.handle.y + Math.sin(hand_left.ang) * hand_left.handle.radius;
-
-                    Matter.Body.setPosition (hand_left.body, hand_left.pos);
+                    Matter.Body.setPosition(hand_left.body, get_curve_point_left (hand_left.t));
                 }
 
                 // Right hand:
@@ -196,11 +190,11 @@
             // Handle keys:
             {
                 if (keys.a == "down") {
-                    hand_left.vel = .004;
+                    hand_left.t -= .001 * delta;
+                    if (hand_left.t < 0) hand_left.t = 0;
                 } else if (keys.d == "down") {
-                    hand_left.vel = -.004;
-                } else {
-                    hand_left.vel = 0;
+                    hand_left.t += .001 * delta;
+                    if (hand_left.t > 1) hand_left.t = 1;
                 }
 
                 if (keys.ArrowLeft == "down") {

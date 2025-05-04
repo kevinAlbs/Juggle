@@ -1,0 +1,202 @@
+<!--
+Test: Straight line movement with changing paddle angle.
+Results: TODO
+-->
+<html>
+<head>
+    <style type="text/css">
+    </style>
+</head>
+<body>
+    <canvas></canvas>
+    <script src="matter.js"></script>
+    <script>
+        // module aliases
+        var Engine = Matter.Engine,
+            Render = Matter.Render,
+            Bodies = Matter.Bodies,
+            Composite = Matter.Composite,
+            Events = Matter.Events;
+
+        // create an engine
+        var engine = Engine.create({timing: {timeScale: .8}});
+
+        // create a renderer
+        var render = Render.create({
+            canvas: document.querySelector("canvas"),
+            engine: engine,
+        });
+
+        let hand_left = {
+            has: null,
+            t: .5,
+            body: Bodies.rectangle(200, 400, 60, 10, {isStatic: true}),
+        };
+
+        let hand_right = {
+            has: null,
+            body: Bodies.rectangle(0, 0, 30, 10, {isStatic: true})
+        };
+
+        let ball1 = {
+            body: Bodies.circle(200, 390, 5, { restitution: 1})
+        };
+
+        let ball2 = {
+            body: Bodies.circle(400, 390, 5, { restitution: 1})
+        };
+
+        let ball3 = {
+            body: Bodies.circle(400, 100, 5, { restitution: 1})
+        };
+
+        let balls = [ball1, ball2, ball3];
+
+        var ground = Bodies.rectangle(400, 610, 810, 60, { isStatic: true });
+
+        // add all of the bodies to the world
+        Composite.add(engine.world, [hand_left.body, hand_right.body, ground, ball1.body, ball2.body, ball3.body]);
+
+        let prevTime = Date.now();
+        let keys = {
+            w: "up",
+            a: "up",
+            s: "up",
+            d: "up",
+            ArrowLeft: "up",
+            ArrowRight: "up",
+            ArrowUp: "up",
+            ArrowDown: "up"
+        }
+
+        document.addEventListener("keydown", function(evt) {
+            console.log(evt.key);
+            if (evt.key in keys) {
+                keys[evt.key] = "down";
+            }
+        });
+
+        document.addEventListener("keyup", function(evt) {
+            if (evt.key in keys) {
+                keys[evt.key] = "released";
+            }
+        });
+
+        function interpolate(p1, p2, t) {
+            let diff = { x: p2.x - p1.x, y: p2.y - p1.y };
+            return { x: p1.x + diff.x * t, y: p1.y + diff.y * t };
+        }
+
+        Events.on(render, "afterRender", () => {
+            // Draw center line.
+            render.context.beginPath();
+            render.context.lineTo(400, 0);
+            render.context.lineTo(400, 600);
+            render.context.stroke();
+
+            render.context.beginPath();
+            render.context.lineTo(400, 0);
+            render.context.lineTo(400, 600);
+            render.context.stroke();
+
+            // Draw look point.
+            render.context.beginPath();
+            render.context.fillStyle="#FFF";
+            let look = interpolate({x:400, y:70}, {x:400,y:50}, hand_left.t);
+            render.context.arc(look.x,look.y,5,0,Math.PI * 2);
+            render.context.fill();
+        });
+        
+        function tick() {
+            Engine.update(engine, Math.min(Date.now() - prevTime, 1000 / 30));
+            let delta = engine.timing.lastDelta;
+
+            
+            // TODO: draw cursor coordinates over cursor for debugging.
+
+
+            [hand_left, hand_right].forEach((hand) => {
+                balls.forEach((ball) => {
+                    if (Matter.Collision.collides(hand.body, ball.body)) {
+                        if (hand.has === null) {
+                            hand.has = ball;
+                        }
+                    }
+                })
+            });
+
+            balls.forEach((ball) => {
+                if (hand_left.has == ball) {
+                    Matter.Body.setPosition (ball.body, {x: hand_left.body.position.x, y: hand_left.body.position.y - 10});
+                } else if (hand_right.has == ball) {
+                    Matter.Body.setPosition (ball.body, {x: hand_right.body.position.x, y: hand_right.body.position.y - 10});
+                }
+            });
+
+            // Move left hand
+            {
+                if (keys.a == "down") {
+                    hand_left.t -= .002 * delta;
+                    if (hand_left.t < 0) hand_left.t = 0;
+                } else if (keys.d == "down") {
+                    hand_left.t += .002 * delta;
+                    if (hand_left.t > 1) hand_left.t = 1;
+                }
+                Matter.Body.setPosition (hand_left.body, interpolate({x: 50, y: 400}, {x:350, y:400}, hand_left.t));
+                // Rotate.
+                let look_t = hand_left.t;
+                let look = interpolate({x:400, y:70}, {x:400,y:50}, 0);
+                let ang = Matter.Vector.angle(look, hand_left.body.position);
+                console.log(ang);
+                Matter.Body.setAngle(hand_left.body, ang - Math.PI / 2);
+            }
+
+            // Handle keys:
+            {
+
+
+                if (keys.ArrowLeft == "down") {
+                    Matter.Body.setVelocity (hand_right.body, {x: -.02, y: 0});
+                } else if (keys.ArrowRight == "down") {
+                    Matter.Body.setVelocity (hand_right.body, {x: +.02, y: 0});
+                } else {
+                    Matter.Body.setVelocity (hand_right.body, {x: 0, y: 0});
+                }
+
+                if (keys.w == "released") {
+                    if (hand_left.has !== null) {
+                        let left_most = hand_left.handle.x - hand_left.handle.radius;
+                        let right_most = hand_left.handle.x + hand_left.handle.radius;
+                        // left_scalar is 0 when hand is fully left, 1 when fully right.
+                        let left_scalar = (hand_left.pos.x - left_most) / (right_most - left_most);
+                        let x_vel = Math.max(.05, .25 * (1 - left_scalar));
+                        Matter.Body.setPosition (hand_left.has.body, {x: hand_left.has.body.position.x, y: hand_left.has.body.position.y - 5});
+                        Matter.Body.setVelocity (hand_left.has.body, {x: x_vel * 10, y: -10});
+                        hand_left.has = null;
+                    }
+                }
+
+                if (keys.ArrowUp == "released") {
+                    if (hand_right.has !== null) {
+                        // TODO
+                    }
+                }
+
+                for (key in keys) {
+                    if (!keys.hasOwnProperty(key)) continue;
+                    // Transition any "released" keys into "up".
+                    // A "released" state only applies for one tick.
+                    if (keys[key] == "released") keys[key] = "up";
+                }
+            }
+
+
+
+            prevTime = Date.now();
+            window.requestAnimationFrame(tick);
+        }
+        window.requestAnimationFrame(tick);
+        Render.run(render);
+    </script>
+</body>
+</html>
