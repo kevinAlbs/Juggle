@@ -35,19 +35,28 @@ Results: TODO
 
         let hand_right = {
             has: null,
-            body: Bodies.rectangle(0, 0, 30, 10, {isStatic: true})
+            t: .5,
+            body: Bodies.rectangle(600, 400, 60, 10, {isStatic: true}),
         };
 
+        let hands = [hand_left, hand_right];
+
+        // `look` is the point at which the hands look at.
+        const look = {
+            x: 400,
+            y: 60
+        }
+
         let ball1 = {
-            body: Bodies.circle(200, 390, 5, { restitution: 1})
+            body: Bodies.circle(200, 390, 8, { restitution: 1})
         };
 
         let ball2 = {
-            body: Bodies.circle(400, 390, 5, { restitution: 1})
+            body: Bodies.circle(600, 390, 8, { restitution: 1})
         };
 
         let ball3 = {
-            body: Bodies.circle(400, 100, 5, { restitution: 1})
+            body: Bodies.circle(550, 50, 8, { restitution: 1})
         };
 
         let balls = [ball1, ball2, ball3];
@@ -102,7 +111,6 @@ Results: TODO
             // Draw look point.
             render.context.beginPath();
             render.context.fillStyle="#FFF";
-            let look = interpolate({x:400, y:70}, {x:400,y:50}, hand_left.t);
             render.context.arc(look.x,look.y,5,0,Math.PI * 2);
             render.context.fill();
         });
@@ -144,11 +152,23 @@ Results: TODO
                 }
                 Matter.Body.setPosition (hand_left.body, interpolate({x: 50, y: 400}, {x:350, y:400}, hand_left.t));
                 // Rotate.
-                let look_t = hand_left.t;
-                let look = interpolate({x:400, y:70}, {x:400,y:50}, 0);
                 let ang = Matter.Vector.angle(look, hand_left.body.position);
-                console.log(ang);
                 Matter.Body.setAngle(hand_left.body, ang - Math.PI / 2);
+            }
+
+            // Move right hand
+            {
+                if (keys.ArrowLeft == "down") {
+                    hand_right.t -= .002 * delta;
+                    if (hand_right.t < 0) hand_right.t = 0;
+                } else if (keys.ArrowRight == "down") {
+                    hand_right.t += .002 * delta;
+                    if (hand_right.t > 1) hand_right.t = 1;
+                }
+                Matter.Body.setPosition (hand_right.body, interpolate({x: 450, y: 400}, {x:750, y:400}, hand_right.t));
+                // Rotate.
+                let ang = Matter.Vector.angle(look, hand_right.body.position);
+                Matter.Body.setAngle(hand_right.body, ang - Math.PI / 2);
             }
 
             // Handle keys:
@@ -165,20 +185,23 @@ Results: TODO
 
                 if (keys.w == "released") {
                     if (hand_left.has !== null) {
-                        let left_most = hand_left.handle.x - hand_left.handle.radius;
-                        let right_most = hand_left.handle.x + hand_left.handle.radius;
-                        // left_scalar is 0 when hand is fully left, 1 when fully right.
-                        let left_scalar = (hand_left.pos.x - left_most) / (right_most - left_most);
-                        let x_vel = Math.max(.05, .25 * (1 - left_scalar));
-                        Matter.Body.setPosition (hand_left.has.body, {x: hand_left.has.body.position.x, y: hand_left.has.body.position.y - 5});
-                        Matter.Body.setVelocity (hand_left.has.body, {x: x_vel * 10, y: -10});
+                        // Create vector pointing towards look point.
+                        let diff = {x: look.x - hand_left.body.position.x, y: look.y - hand_left.body.position.y};
+                        let diff_norm = Matter.Vector.normalise (diff);
+                        let vel = Matter.Vector.mult(diff_norm, 13);
+                        Matter.Body.setVelocity (hand_left.has.body, vel);
                         hand_left.has = null;
                     }
                 }
 
                 if (keys.ArrowUp == "released") {
                     if (hand_right.has !== null) {
-                        // TODO
+                        // Create vector pointing towards look point.
+                        let diff = {x: look.x - hand_right.body.position.x, y: look.y - hand_right.body.position.y};
+                        let diff_norm = Matter.Vector.normalise (diff);
+                        let vel = Matter.Vector.mult(diff_norm, 13);
+                        Matter.Body.setVelocity (hand_right.has.body, vel);
+                        hand_right.has = null;
                     }
                 }
 
