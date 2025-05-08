@@ -29,12 +29,14 @@ Results: TODO
 
         let hand_left = {
             has: null,
+            ballOffset: {x:0,y:0},
             t: .5,
             body: Bodies.rectangle(200, 400, 60, 10, {isStatic: true}),
         };
 
         let hand_right = {
             has: null,
+            ballOffset: {x:0,y:0},
             t: .5,
             body: Bodies.rectangle(600, 400, 60, 10, {isStatic: true}),
         };
@@ -48,7 +50,7 @@ Results: TODO
         }
 
         let ball1 = {
-            body: Bodies.circle(200, 390, 8, { restitution: 1})
+            body: Bodies.circle(200, 0, 8, { restitution: 1})
         };
 
         let ball2 = {
@@ -96,6 +98,14 @@ Results: TODO
             return { x: p1.x + diff.x * t, y: p1.y + diff.y * t };
         }
 
+        function drawSegment (start, vec) {
+            let savedStrokeStyle = render.context.strokeStyle;
+            render.context.strokeStyle="#F00";
+            render.context.lineTo(start.x, start.y);
+            render.context.lineTo(start.x + vec.x, start.y + vec.y);
+            render.context.strokeStyle=savedStrokeStyle;
+        }
+
         Events.on(render, "afterRender", () => {
             // Draw center line.
             render.context.beginPath();
@@ -112,35 +122,34 @@ Results: TODO
             render.context.beginPath();
             render.context.fillStyle="#FFF";
             render.context.arc(look.x,look.y,5,0,Math.PI * 2);
-            render.context.fill();
+            render.context.fill();            
         });
         
         function tick() {
             Engine.update(engine, Math.min(Date.now() - prevTime, 1000 / 30));
             let delta = engine.timing.lastDelta;
 
-            
-            // TODO: draw cursor coordinates over cursor for debugging.
-
-
-            [hand_left, hand_right].forEach((hand) => {
+            // Check for ball collisions
+            hands.forEach((hand) => {
                 balls.forEach((ball) => {
-                    if (Matter.Collision.collides(hand.body, ball.body)) {
+                    let coll = Matter.Collision.collides(ball.body, hand.body);
+                    if (coll !== null) {
                         if (hand.has === null) {
+                            // Find collision point.
+                            console.log(coll.penetration);
+                            // Get the diff vector. Unrotate it. Then re-rotate it based on the hand rotation.
+                            let diff = {x: ball.body.position.x - hand.body.position.x, y: ball.body.position.y - hand.body.position.y};
+                            diff.x -= coll.penetration.x;
+                            diff.y -= coll.penetration.y;
+                            hand.ballOffset = Matter.Vector.rotate(diff, -1 * hand.body.angle);
+                            // Add penetration.
                             hand.has = ball;
                         }
                     }
                 })
             });
-
-            balls.forEach((ball) => {
-                if (hand_left.has == ball) {
-                    Matter.Body.setPosition (ball.body, {x: hand_left.body.position.x, y: hand_left.body.position.y - 10});
-                } else if (hand_right.has == ball) {
-                    Matter.Body.setPosition (ball.body, {x: hand_right.body.position.x, y: hand_right.body.position.y - 10});
-                }
-            });
-
+            
+            // TODO: draw cursor coordinates over cursor for debugging.
             // Move left hand
             {
                 if (keys.a == "down") {
@@ -170,6 +179,17 @@ Results: TODO
                 let ang = Matter.Vector.angle(look, hand_right.body.position);
                 Matter.Body.setAngle(hand_right.body, ang - Math.PI / 2);
             }
+
+
+            hands.forEach((hand) => {
+                balls.forEach((ball) => {
+                    if (hand.has == ball) {
+                        let ballOffset = Matter.Vector.rotate(hand.ballOffset, hand.body.angle)
+                        Matter.Body.setPosition (ball.body, {x: hand.body.position.x + ballOffset.x, y: hand.body.position.y + ballOffset.y});
+                    }
+                })
+            });
+
 
             // Handle keys:
             {
