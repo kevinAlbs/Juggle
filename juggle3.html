@@ -30,6 +30,7 @@ Results: TODO
         let hand_left = {
             has: null,
             ballOffset: {x:0,y:0},
+            release_timer: 0,
             t: .5,
             body: Bodies.rectangle(200, 400, 60, 10, {isStatic: true}),
         };
@@ -37,6 +38,7 @@ Results: TODO
         let hand_right = {
             has: null,
             ballOffset: {x:0,y:0},
+            release_timer: 0,
             t: .5,
             body: Bodies.rectangle(600, 400, 60, 10, {isStatic: true}),
         };
@@ -81,9 +83,10 @@ Results: TODO
         }
 
         document.addEventListener("keydown", function(evt) {
-            console.log(evt.key);
             if (evt.key in keys) {
-                keys[evt.key] = "down";
+                if (keys[evt.key] !== "down") {
+                    keys[evt.key] = "pressed";
+                }
             }
         });
 
@@ -101,8 +104,10 @@ Results: TODO
         function drawSegment (start, vec) {
             let savedStrokeStyle = render.context.strokeStyle;
             render.context.strokeStyle="#F00";
+            render.context.beginPath();
             render.context.lineTo(start.x, start.y);
             render.context.lineTo(start.x + vec.x, start.y + vec.y);
+            render.context.stroke();
             render.context.strokeStyle=savedStrokeStyle;
         }
 
@@ -122,7 +127,24 @@ Results: TODO
             render.context.beginPath();
             render.context.fillStyle="#FFF";
             render.context.arc(look.x,look.y,5,0,Math.PI * 2);
-            render.context.fill();            
+            render.context.fill();
+
+            {
+                let diff = {x: look.x - hand_left.body.position.x, y: look.y - hand_left.body.position.y};
+                let diff_norm = Matter.Vector.normalise (diff);
+                let magnitude = 50 * (hand_left.release_timer / 500);
+                let vel = Matter.Vector.mult(diff_norm, magnitude);
+                drawSegment (hand_left.body.position, vel);
+            }
+
+            {
+                let diff = {x: look.x - hand_right.body.position.x, y: look.y - hand_right.body.position.y};
+                let diff_norm = Matter.Vector.normalise (diff);
+                let magnitude = 50 * (hand_right.release_timer / 500);
+                let vel = Matter.Vector.mult(diff_norm, magnitude);
+                drawSegment (hand_right.body.position, vel);
+            }
+
         });
         
         function tick() {
@@ -136,20 +158,47 @@ Results: TODO
                     if (coll !== null) {
                         if (hand.has === null) {
                             // Find collision point.
-                            console.log(coll.penetration);
                             // Get the diff vector. Unrotate it. Then re-rotate it based on the hand rotation.
                             let diff = {x: ball.body.position.x - hand.body.position.x, y: ball.body.position.y - hand.body.position.y};
+                            // Remove penetration.
                             diff.x -= coll.penetration.x;
                             diff.y -= coll.penetration.y;
                             hand.ballOffset = Matter.Vector.rotate(diff, -1 * hand.body.angle);
-                            // Add penetration.
                             hand.has = ball;
                         }
                     }
                 })
             });
             
-            // TODO: draw cursor coordinates over cursor for debugging.
+            if (hand_left.has !== null) {
+                if (keys.w == "pressed") {
+                    // Check for long press.
+                    hand_left.release_timer = 0;
+                } else if (keys.w == "down") {
+                    hand_left.release_timer += delta;
+                    // TODO: show long press somehow:
+                    // - move paddle backwards slightly.
+                    // - show an arrow
+                    // - use bending bezier curve
+                    hand_left.release_timer = Math.min(500, hand_left.release_timer);
+                }
+            }
+
+            if (hand_right.has !== null) {
+                if (keys.ArrowUp == "pressed") {
+                    // Check for long press.
+                    hand_right.release_timer = 0;
+                } else if (keys.ArrowUp == "down") {
+                    hand_right.release_timer += delta;
+                    // TODO: show long press somehow:
+                    // - move paddle backwards slightly.
+                    // - show an arrow
+                    // - use bending bezier curve
+                    hand_right.release_timer = Math.min(500, hand_right.release_timer);
+                }
+            }
+
+
             // Move left hand
             {
                 if (keys.a == "down") {
@@ -208,7 +257,9 @@ Results: TODO
                         // Create vector pointing towards look point.
                         let diff = {x: look.x - hand_left.body.position.x, y: look.y - hand_left.body.position.y};
                         let diff_norm = Matter.Vector.normalise (diff);
-                        let vel = Matter.Vector.mult(diff_norm, 13);
+                        let magnitude = 9 + 7 * (hand_left.release_timer / 500);
+                        hand_left.release_timer = 0;
+                        let vel = Matter.Vector.mult(diff_norm, magnitude);
                         Matter.Body.setVelocity (hand_left.has.body, vel);
                         hand_left.has = null;
                     }
@@ -219,7 +270,9 @@ Results: TODO
                         // Create vector pointing towards look point.
                         let diff = {x: look.x - hand_right.body.position.x, y: look.y - hand_right.body.position.y};
                         let diff_norm = Matter.Vector.normalise (diff);
-                        let vel = Matter.Vector.mult(diff_norm, 13);
+                        let magnitude = 9 + 7 * (hand_right.release_timer / 500);
+                        hand_right.release_timer = 0;
+                        let vel = Matter.Vector.mult(diff_norm, magnitude);
                         Matter.Body.setVelocity (hand_right.has.body, vel);
                         hand_right.has = null;
                     }
@@ -227,9 +280,12 @@ Results: TODO
 
                 for (key in keys) {
                     if (!keys.hasOwnProperty(key)) continue;
-                    // Transition any "released" keys into "up".
+                    // Transition any "released" keys to "up".
                     // A "released" state only applies for one tick.
                     if (keys[key] == "released") keys[key] = "up";
+                    // Transition any "pressed" keys to "down".
+                    // A "pressed" state only applies for one tick.
+                    if (keys[key] == "pressed") keys[key] = "down";
                 }
             }
 
