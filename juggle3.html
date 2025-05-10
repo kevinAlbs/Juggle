@@ -1,12 +1,14 @@
 <!--
 Test: Straight line movement with changing paddle angle.
-Results: TODO
+Results: I like it.
 -->
 <html>
+
 <head>
     <style type="text/css">
     </style>
 </head>
+
 <body>
     <canvas></canvas>
     <script src="matter.js"></script>
@@ -19,7 +21,7 @@ Results: TODO
             Events = Matter.Events;
 
         // create an engine
-        var engine = Engine.create({timing: {timeScale: .8}});
+        var engine = Engine.create({ timing: { timeScale: .8 } });
 
         // create a renderer
         var render = Render.create({
@@ -29,18 +31,18 @@ Results: TODO
 
         let hand_left = {
             has: null,
-            ballOffset: {x:0,y:0},
+            ballOffset: { x: 0, y: 0 },
             release_timer: 0,
             t: .5,
-            body: Bodies.rectangle(200, 400, 60, 10, {isStatic: true}),
+            body: Bodies.rectangle(200, 400, 60, 10, { isStatic: true }),
         };
 
         let hand_right = {
             has: null,
-            ballOffset: {x:0,y:0},
+            ballOffset: { x: 0, y: 0 },
             release_timer: 0,
             t: .5,
-            body: Bodies.rectangle(600, 400, 60, 10, {isStatic: true}),
+            body: Bodies.rectangle(600, 400, 60, 10, { isStatic: true }),
         };
 
         let hands = [hand_left, hand_right];
@@ -52,15 +54,15 @@ Results: TODO
         }
 
         let ball1 = {
-            body: Bodies.circle(200, 0, 8, { restitution: 1})
+            body: Bodies.circle(200, 0, 8, { restitution: 1 })
         };
 
         let ball2 = {
-            body: Bodies.circle(600, 390, 8, { restitution: 1})
+            body: Bodies.circle(600, 390, 8, { restitution: 1 })
         };
 
         let ball3 = {
-            body: Bodies.circle(550, 50, 8, { restitution: 1})
+            body: Bodies.circle(550, 50, 8, { restitution: 1 })
         };
 
         let balls = [ball1, ball2, ball3];
@@ -82,7 +84,7 @@ Results: TODO
             ArrowDown: "up"
         }
 
-        document.addEventListener("keydown", function(evt) {
+        document.addEventListener("keydown", function (evt) {
             if (evt.key in keys) {
                 if (keys[evt.key] !== "down") {
                     keys[evt.key] = "pressed";
@@ -90,7 +92,7 @@ Results: TODO
             }
         });
 
-        document.addEventListener("keyup", function(evt) {
+        document.addEventListener("keyup", function (evt) {
             if (evt.key in keys) {
                 keys[evt.key] = "released";
             }
@@ -101,14 +103,14 @@ Results: TODO
             return { x: p1.x + diff.x * t, y: p1.y + diff.y * t };
         }
 
-        function drawSegment (start, vec) {
+        function drawSegment(start, vec) {
             let savedStrokeStyle = render.context.strokeStyle;
-            render.context.strokeStyle="#F00";
+            render.context.strokeStyle = "#F00";
             render.context.beginPath();
             render.context.lineTo(start.x, start.y);
             render.context.lineTo(start.x + vec.x, start.y + vec.y);
             render.context.stroke();
-            render.context.strokeStyle=savedStrokeStyle;
+            render.context.strokeStyle = savedStrokeStyle;
         }
 
         Events.on(render, "afterRender", () => {
@@ -125,28 +127,28 @@ Results: TODO
 
             // Draw look point.
             render.context.beginPath();
-            render.context.fillStyle="#FFF";
-            render.context.arc(look.x,look.y,5,0,Math.PI * 2);
+            render.context.fillStyle = "#FFF";
+            render.context.arc(look.x, look.y, 5, 0, Math.PI * 2);
             render.context.fill();
 
             {
-                let diff = {x: look.x - hand_left.body.position.x, y: look.y - hand_left.body.position.y};
-                let diff_norm = Matter.Vector.normalise (diff);
+                let diff = { x: look.x - hand_left.body.position.x, y: look.y - hand_left.body.position.y };
+                let diff_norm = Matter.Vector.normalise(diff);
                 let magnitude = 50 * (hand_left.release_timer / 500);
                 let vel = Matter.Vector.mult(diff_norm, magnitude);
-                drawSegment (hand_left.body.position, vel);
+                drawSegment(hand_left.body.position, vel);
             }
 
             {
-                let diff = {x: look.x - hand_right.body.position.x, y: look.y - hand_right.body.position.y};
-                let diff_norm = Matter.Vector.normalise (diff);
+                let diff = { x: look.x - hand_right.body.position.x, y: look.y - hand_right.body.position.y };
+                let diff_norm = Matter.Vector.normalise(diff);
                 let magnitude = 50 * (hand_right.release_timer / 500);
                 let vel = Matter.Vector.mult(diff_norm, magnitude);
-                drawSegment (hand_right.body.position, vel);
+                drawSegment(hand_right.body.position, vel);
             }
 
         });
-        
+
         function tick() {
             Engine.update(engine, Math.min(Date.now() - prevTime, 1000 / 30));
             let delta = engine.timing.lastDelta;
@@ -159,7 +161,7 @@ Results: TODO
                         if (hand.has === null) {
                             // Find collision point.
                             // Get the diff vector. Unrotate it. Then re-rotate it based on the hand rotation.
-                            let diff = {x: ball.body.position.x - hand.body.position.x, y: ball.body.position.y - hand.body.position.y};
+                            let diff = { x: ball.body.position.x - hand.body.position.x, y: ball.body.position.y - hand.body.position.y };
                             // Remove penetration.
                             diff.x -= coll.penetration.x;
                             diff.y -= coll.penetration.y;
@@ -169,7 +171,7 @@ Results: TODO
                     }
                 })
             });
-            
+
             if (hand_left.has !== null) {
                 if (keys.w == "pressed") {
                     // Check for long press.
@@ -208,7 +210,7 @@ Results: TODO
                     hand_left.t += .002 * delta;
                     if (hand_left.t > 1) hand_left.t = 1;
                 }
-                Matter.Body.setPosition (hand_left.body, interpolate({x: 50, y: 400}, {x:350, y:400}, hand_left.t));
+                Matter.Body.setPosition(hand_left.body, interpolate({ x: 50, y: 400 }, { x: 350, y: 400 }, hand_left.t));
                 // Rotate.
                 let ang = Matter.Vector.angle(look, hand_left.body.position);
                 Matter.Body.setAngle(hand_left.body, ang - Math.PI / 2);
@@ -223,7 +225,7 @@ Results: TODO
                     hand_right.t += .002 * delta;
                     if (hand_right.t > 1) hand_right.t = 1;
                 }
-                Matter.Body.setPosition (hand_right.body, interpolate({x: 450, y: 400}, {x:750, y:400}, hand_right.t));
+                Matter.Body.setPosition(hand_right.body, interpolate({ x: 450, y: 400 }, { x: 750, y: 400 }, hand_right.t));
                 // Rotate.
                 let ang = Matter.Vector.angle(look, hand_right.body.position);
                 Matter.Body.setAngle(hand_right.body, ang - Math.PI / 2);
@@ -234,7 +236,7 @@ Results: TODO
                 balls.forEach((ball) => {
                     if (hand.has == ball) {
                         let ballOffset = Matter.Vector.rotate(hand.ballOffset, hand.body.angle)
-                        Matter.Body.setPosition (ball.body, {x: hand.body.position.x + ballOffset.x, y: hand.body.position.y + ballOffset.y});
+                        Matter.Body.setPosition(ball.body, { x: hand.body.position.x + ballOffset.x, y: hand.body.position.y + ballOffset.y });
                     }
                 })
             });
@@ -245,22 +247,22 @@ Results: TODO
 
 
                 if (keys.ArrowLeft == "down") {
-                    Matter.Body.setVelocity (hand_right.body, {x: -.02, y: 0});
+                    Matter.Body.setVelocity(hand_right.body, { x: -.02, y: 0 });
                 } else if (keys.ArrowRight == "down") {
-                    Matter.Body.setVelocity (hand_right.body, {x: +.02, y: 0});
+                    Matter.Body.setVelocity(hand_right.body, { x: +.02, y: 0 });
                 } else {
-                    Matter.Body.setVelocity (hand_right.body, {x: 0, y: 0});
+                    Matter.Body.setVelocity(hand_right.body, { x: 0, y: 0 });
                 }
 
                 if (keys.w == "released") {
                     if (hand_left.has !== null) {
                         // Create vector pointing towards look point.
-                        let diff = {x: look.x - hand_left.body.position.x, y: look.y - hand_left.body.position.y};
-                        let diff_norm = Matter.Vector.normalise (diff);
+                        let diff = { x: look.x - hand_left.body.position.x, y: look.y - hand_left.body.position.y };
+                        let diff_norm = Matter.Vector.normalise(diff);
                         let magnitude = 9 + 7 * (hand_left.release_timer / 500);
                         hand_left.release_timer = 0;
                         let vel = Matter.Vector.mult(diff_norm, magnitude);
-                        Matter.Body.setVelocity (hand_left.has.body, vel);
+                        Matter.Body.setVelocity(hand_left.has.body, vel);
                         hand_left.has = null;
                     }
                 }
@@ -268,12 +270,12 @@ Results: TODO
                 if (keys.ArrowUp == "released") {
                     if (hand_right.has !== null) {
                         // Create vector pointing towards look point.
-                        let diff = {x: look.x - hand_right.body.position.x, y: look.y - hand_right.body.position.y};
-                        let diff_norm = Matter.Vector.normalise (diff);
+                        let diff = { x: look.x - hand_right.body.position.x, y: look.y - hand_right.body.position.y };
+                        let diff_norm = Matter.Vector.normalise(diff);
                         let magnitude = 9 + 7 * (hand_right.release_timer / 500);
                         hand_right.release_timer = 0;
                         let vel = Matter.Vector.mult(diff_norm, magnitude);
-                        Matter.Body.setVelocity (hand_right.has.body, vel);
+                        Matter.Body.setVelocity(hand_right.has.body, vel);
                         hand_right.has = null;
                     }
                 }
@@ -298,4 +300,5 @@ Results: TODO
         Render.run(render);
     </script>
 </body>
+
 </html>
