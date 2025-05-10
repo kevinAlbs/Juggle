@@ -13,6 +13,7 @@ Results: I like it.
     <canvas></canvas>
     <script src="matter.js"></script>
     <script>
+        let dropTimer = 3000;
         // module aliases
         var Engine = Matter.Engine,
             Render = Matter.Render,
@@ -147,11 +148,22 @@ Results: I like it.
                 drawSegment(hand_right.body.position, vel);
             }
 
+            if (dropTimer > 0) {
+                render.context.fillText("" + Math.ceil(dropTimer / 1000), 10, 10);
+            }
+
         });
 
         function tick() {
             Engine.update(engine, Math.min(Date.now() - prevTime, 1000 / 30));
             let delta = engine.timing.lastDelta;
+
+            if (dropTimer > 0) {
+                dropTimer -= delta;
+                Matter.Body.setPosition(ball3.body, { x: 550, y: 50 });
+                Matter.Body.setVelocity(ball3.body, { x: 0, y: 0 });
+                // Q: Why does creating ball3 with isStatic:true, then setting static to false, result in disappearing? A:
+            }
 
             // Check for ball collisions
             hands.forEach((hand) => {
