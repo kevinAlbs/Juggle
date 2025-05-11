@@ -1,0 +1,307 @@
+<!--
+
+-->
+<html>
+
+<head>
+    <style type="text/css">
+    </style>
+</head>
+
+<body>
+    <canvas></canvas>
+    <script src="matter.js"></script>
+    <script>
+        let dropTimer = 3000;
+        // module aliases
+        var Engine = Matter.Engine,
+            Render = Matter.Render,
+            Bodies = Matter.Bodies,
+            Composite = Matter.Composite,
+            Events = Matter.Events;
+
+        // create an engine
+        var engine = Engine.create({ timing: { timeScale: .8 } });
+
+        // create a renderer
+        var render = Render.create({
+            canvas: document.querySelector("canvas"),
+            engine: engine,
+        });
+
+        let hand_left = {
+            keys: {
+                left: "a",
+                right: "d",
+                up: "w"
+            },
+            has: null,
+            hasConstraint: null,
+            released: null,
+            release_timer: 0,
+            t: .5,
+            pos: { x: 0, y: 0 }, // will be set.
+            radius: 20,
+            leftmost: { x: 50, y: 400 },
+            rightmost: { x: 350, y: 400 },
+
+        };
+
+        let hand_right = {
+            keys: {
+                left: "ArrowLeft",
+                right: "ArrowRight",
+                up: "ArrowUp"
+            },
+            has: null,
+            hasConstraint: null,
+            released: null,
+            release_timer: 0,
+            t: .5,
+            pos: { x: 0, y: 0 }, // will be set.
+            radius: 20,
+            leftmost: { x: 450, y: 400 },
+            rightmost: { x: 750, y: 400 },
+        };
+
+        let hands = [hand_left, hand_right];
+
+        // `look` is the point at which the hands look at.
+        const look = {
+            x: 400,
+            y: 60
+        }
+
+        let ball1 = {
+            radius: 8,
+            body: Bodies.circle(200, 390, 8, { restitution: 1 })
+        };
+
+        let ball2 = {
+            radius: 8,
+            body: Bodies.circle(600, 390, 8, { restitution: 1 })
+        };
+
+        let ball3 = {
+            radius: 8,
+            body: Bodies.circle(550, 50, 8, { restitution: 1 })
+        };
+
+        let balls = [ball1, ball2, ball3];
+
+        var ground = Bodies.rectangle(400, 610, 810, 60, { isStatic: true });
+
+        // add all of the bodies to the world
+        Composite.add(engine.world, [ground, ball1.body, ball2.body, ball3.body]);
+
+        let prevTime = Date.now();
+        let keys = {
+            w: "up",
+            a: "up",
+            s: "up",
+            d: "up",
+            ArrowLeft: "up",
+            ArrowRight: "up",
+            ArrowUp: "up",
+            ArrowDown: "up"
+        }
+
+        document.addEventListener("keydown", function (evt) {
+            if (evt.key in keys) {
+                if (keys[evt.key] !== "down") {
+                    keys[evt.key] = "pressed";
+                }
+            }
+        });
+
+        document.addEventListener("keyup", function (evt) {
+            if (evt.key in keys) {
+                keys[evt.key] = "released";
+            }
+        });
+
+        function interpolate(p1, p2, t) {
+            let diff = { x: p2.x - p1.x, y: p2.y - p1.y };
+            return { x: p1.x + diff.x * t, y: p1.y + diff.y * t };
+        }
+
+        function drawSegment(start, vec) {
+            let savedStrokeStyle = render.context.strokeStyle;
+            render.context.strokeStyle = "#F00";
+            render.context.beginPath();
+            render.context.lineTo(start.x, start.y);
+            render.context.lineTo(start.x + vec.x, start.y + vec.y);
+            render.context.stroke();
+            render.context.strokeStyle = savedStrokeStyle;
+        }
+
+        Events.on(render, "afterRender", () => {
+            // Draw center line.
+            render.context.beginPath();
+            render.context.lineTo(400, 0);
+            render.context.lineTo(400, 600);
+            render.context.stroke();
+
+            render.context.beginPath();
+            render.context.lineTo(400, 0);
+            render.context.lineTo(400, 600);
+            render.context.stroke();
+
+            // Draw look point.
+            render.context.beginPath();
+            render.context.fillStyle = "#FFF";
+            render.context.arc(look.x, look.y, 5, 0, Math.PI * 2);
+            render.context.fill();
+
+            hands.forEach((hand) => {
+                // Draw arrow.
+                {
+                    let diff = { x: look.x - hand.pos.x, y: look.y - hand.pos.y };
+                    let diff_norm = Matter.Vector.normalise(diff);
+                    let magnitude = 50 * (hand.release_timer / 500);
+                    let vel = Matter.Vector.mult(diff_norm, magnitude);
+                    drawSegment(hand.pos, vel);
+                }
+
+                // Draw circle.
+                {
+                    render.context.beginPath();
+                    render.context.arc (hand.pos.x, hand.pos.y, hand.radius, 0, Math.PI * 2);
+                    render.context.stroke();
+                }
+            });
+
+            if (dropTimer > 0) {
+                render.context.fillText("" + Math.ceil(dropTimer / 1000), 10, 10);
+            }
+
+        });
+
+        function tick() {
+            Engine.update(engine, Math.min(Date.now() - prevTime, 1000 / 30));
+            let delta = engine.timing.lastDelta;
+
+            if (dropTimer > 0) {
+                dropTimer -= delta;
+                Matter.Body.setPosition(ball3.body, { x: 550, y: 50 });
+                Matter.Body.setVelocity(ball3.body, { x: 0, y: 0 });
+                // Q: Why does creating ball3 with isStatic:true, then setting static to false, result in disappearing? A:
+            }
+
+            hands.forEach((hand) => {
+                // Check for ball collisions
+                balls.forEach((ball) => {
+                    if (hand.has == null) {
+                        let distSq = Math.pow (ball.body.position.x - hand.pos.x, 2) + Math.pow(ball.body.position.y - hand.pos.y, 2);
+                        if (distSq < Math.pow (hand.radius + ball.radius, 2)) {
+                            if (hand.released == ball) {
+                                // Ball was just released. Do not hold again until it is beyond distance.
+                                return;
+                            }
+                            hand.has = ball;
+
+                            hand.hasConstraint = Matter.Constraint.create({
+                                bodyA: hand.has.body,
+                                pointB: hand.pos,
+                                length: 0,
+                                stiffness: .3
+                            })
+                            Matter.Composite.add(engine.world, [hand.hasConstraint])
+                        } else if (hand.released == ball && distSq > Math.pow(hand.radius + ball.radius + 5, 2)) {
+                            // Ball was just released, and is far enough away to consider to hold again.
+                            hand.released = null;
+                        }
+                    }
+                });
+
+                // Check for release.
+                if (hand.has !== null) {
+                    if (keys[hand.keys.up] == "pressed") {
+                        // Check for long press.
+                        hand.release_timer = 0;
+                    } else if (keys[hand.keys.up] == "down") {
+                        hand.release_timer += delta;
+                        hand.release_timer = Math.min(500, hand.release_timer);
+                    }
+
+                    // Move towards target pos.
+                    // let new_x = hand.pos.x;
+                    // let x_diff = hand.pos.x - hand.has.body.position.x;
+                    // let inc = delta * 1;
+                    // if (Math.abs (x_diff) > inc) {
+                    //     console.log("incrementing slightly");
+                    //     inc *= Math.sign (x_diff)
+                    //     new_x = hand.has.body.position.x + inc;
+                    //     console.log(new_x);
+                    // }
+                    // let new_y = hand.pos.y; 
+                    // let y_diff = hand.pos.y - hand.has.body.position.y;
+                    // inc = delta * .1;
+                    // if (Math.abs (y_diff) > inc) {
+                    //     inc *= Math.sign (y_diff)
+                    //     new_y = hand.has.body.position.y + inc;
+                    // }
+                    // Matter.Body.setPosition (hand.has.body, {x: new_x, y: new_y});
+                    // Matter.Body.setVelocity (hand.has.body, {x:0,y:0});
+
+
+
+                }
+
+                // Move hand
+                {
+                    if (keys[hand.keys.left] == "down") {
+                        hand.t -= .002 * delta;
+                        if (hand.t < 0) hand.t = 0;
+                    } else if (keys[hand.keys.right] == "down") {
+                        hand.t += .002 * delta;
+                        if (hand.t > 1) hand.t = 1;
+                    }
+                    hand.pos = interpolate(hand.leftmost, hand.rightmost, hand.t);
+                    if (hand.hasConstraint != null) {
+                        hand.hasConstraint.pointB = hand.pos;
+                    }
+                }
+
+
+                if (keys[hand.keys.up] == "released") {
+                    if (hand.has !== null) {
+                        Matter.Composite.remove (engine.world, hand.hasConstraint);
+                        hand.hasConstraint = null;
+
+                        // Create vector pointing towards look point.
+                        let diff = { x: look.x - hand.pos.x, y: look.y - hand.pos.y };
+                        let diff_norm = Matter.Vector.normalise(diff);
+                        let magnitude = 9 + 7 * (hand.release_timer / 500);
+                        hand.release_timer = 0;
+                        let vel = Matter.Vector.mult(diff_norm, magnitude);
+                        Matter.Body.setVelocity(hand.has.body, vel);
+                        hand.released = hand.has;
+                        hand.has = null;
+                    }
+                }
+            });
+
+
+            // Handle keys:
+            {
+                for (key in keys) {
+                    if (!keys.hasOwnProperty(key)) continue;
+                    // Transition any "released" keys to "up".
+                    // A "released" state only applies for one tick.
+                    if (keys[key] == "released") keys[key] = "up";
+                    // Transition any "pressed" keys to "down".
+                    // A "pressed" state only applies for one tick.
+                    if (keys[key] == "pressed") keys[key] = "down";
+                }
+            }
+
+            prevTime = Date.now();
+            window.requestAnimationFrame(tick);
+        }
+        window.requestAnimationFrame(tick);
+        Render.run(render);
+    </script>
+</body>
+
+</html>
