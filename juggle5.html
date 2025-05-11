@@ -12,6 +12,8 @@
     <canvas></canvas>
     <script src="matter.js"></script>
     <script>
+        let score = 0;
+
         let dropTimer = 3000;
         // module aliases
         var Engine = Matter.Engine,
@@ -74,17 +76,20 @@
 
         let ball1 = {
             radius: 8,
-            body: Bodies.circle(200, 390, 8, { restitution: 1 })
+            body: Bodies.circle(200, 390, 8, { restitution: 1 }),
+            side: "left"
         };
 
         let ball2 = {
             radius: 8,
-            body: Bodies.circle(600, 390, 8, { restitution: 1 })
+            body: Bodies.circle(600, 390, 8, { restitution: 1 }),
+            side: "right"
         };
 
         let ball3 = {
             radius: 8,
-            body: Bodies.circle(550, 50, 8, { restitution: 1 })
+            body: Bodies.circle(550, 50, 8, { restitution: 1 }),
+            side: "right"
         };
 
         let balls = [ball1, ball2, ball3];
@@ -175,6 +180,7 @@
                 render.context.fillText("" + Math.ceil(dropTimer / 1000), 10, 10);
             }
 
+            render.context.fillText("" + score, 402, 590);
         });
 
         function tick() {
@@ -204,7 +210,7 @@
                                 bodyA: hand.has.body,
                                 pointB: hand.pos,
                                 length: 0,
-                                stiffness: .3
+                                stiffness: .1
                             })
                             Matter.Composite.add(engine.world, [hand.hasConstraint])
                         } else if (hand.released == ball && distSq > Math.pow(hand.radius + ball.radius + 5, 2)) {
@@ -223,29 +229,6 @@
                         hand.release_timer += delta;
                         hand.release_timer = Math.min(500, hand.release_timer);
                     }
-
-                    // Move towards target pos.
-                    // let new_x = hand.pos.x;
-                    // let x_diff = hand.pos.x - hand.has.body.position.x;
-                    // let inc = delta * 1;
-                    // if (Math.abs (x_diff) > inc) {
-                    //     console.log("incrementing slightly");
-                    //     inc *= Math.sign (x_diff)
-                    //     new_x = hand.has.body.position.x + inc;
-                    //     console.log(new_x);
-                    // }
-                    // let new_y = hand.pos.y; 
-                    // let y_diff = hand.pos.y - hand.has.body.position.y;
-                    // inc = delta * .1;
-                    // if (Math.abs (y_diff) > inc) {
-                    //     inc *= Math.sign (y_diff)
-                    //     new_y = hand.has.body.position.y + inc;
-                    // }
-                    // Matter.Body.setPosition (hand.has.body, {x: new_x, y: new_y});
-                    // Matter.Body.setVelocity (hand.has.body, {x:0,y:0});
-
-
-
                 }
 
                 // Move hand
@@ -281,6 +264,24 @@
                     }
                 }
             });
+
+            // Check if ball passes middle:
+            {
+                balls.forEach((ball) => {
+                    if (ball.side === "left") {
+                        if (ball.body.position.x > 400) {
+                            ball.side = "right";
+                            score += 1;
+                        }
+                    }
+                    if (ball.side === "right") {
+                        if (ball.body.position.x < 400) {
+                            ball.side = "left";
+                            score += 1;
+                        }
+                    }
+                })
+            }
 
 
             // Handle keys:
