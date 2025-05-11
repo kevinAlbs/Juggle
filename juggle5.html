@@ -5,15 +5,49 @@
 
 <head>
     <style type="text/css">
+        * {
+            font-family: monospace;
+        }
+        #container {
+            width: 800px;
+            margin: 0px auto;
+            position: relative;
+        }
+        #container > #gameOver {
+            position: absolute;
+            top: 0px; 
+            left: 0px;
+            background: rgba(255,255,255,.8);
+            padding-top: 100px;
+            color: #000;
+            text-align: center;
+            width: 800px;
+            height: 500px;
+            display: none;
+        }
+        #restart {
+            color: #000;
+        }
     </style>
 </head>
 
 <body>
-    <canvas></canvas>
+    <div id="container">
+        <div id="gameOver">
+            <h1>Game over</h1>
+            <p><a href='#' id='restart'>Restart</a></p>
+        </div>
+        <canvas></canvas>
+    </div>
     <script src="matter.js"></script>
     <script>
+        document.querySelector("#restart").addEventListener("click", (e) => {
+            e.preventDefault();
+            window.location.reload();
+            return false;
+        })
+        let gameOver = false;
         let score = 0;
-
         let dropTimer = 3000;
         // module aliases
         var Engine = Matter.Engine,
@@ -94,10 +128,8 @@
 
         let balls = [ball1, ball2, ball3];
 
-        var ground = Bodies.rectangle(400, 610, 810, 60, { isStatic: true });
-
         // add all of the bodies to the world
-        Composite.add(engine.world, [ground, ball1.body, ball2.body, ball3.body]);
+        Composite.add(engine.world, [ball1.body, ball2.body, ball3.body]);
 
         let prevTime = Date.now();
         let keys = {
@@ -171,7 +203,7 @@
                 // Draw circle.
                 {
                     render.context.beginPath();
-                    render.context.arc (hand.pos.x, hand.pos.y, hand.radius, 0, Math.PI * 2);
+                    render.context.arc(hand.pos.x, hand.pos.y, hand.radius, 0, Math.PI * 2);
                     render.context.stroke();
                 }
             });
@@ -198,8 +230,8 @@
                 // Check for ball collisions
                 balls.forEach((ball) => {
                     if (hand.has == null) {
-                        let distSq = Math.pow (ball.body.position.x - hand.pos.x, 2) + Math.pow(ball.body.position.y - hand.pos.y, 2);
-                        if (distSq < Math.pow (hand.radius + ball.radius, 2)) {
+                        let distSq = Math.pow(ball.body.position.x - hand.pos.x, 2) + Math.pow(ball.body.position.y - hand.pos.y, 2);
+                        if (distSq < Math.pow(hand.radius + ball.radius, 2)) {
                             if (hand.released == ball) {
                                 // Ball was just released. Do not hold again until it is beyond distance.
                                 return;
@@ -249,7 +281,7 @@
 
                 if (keys[hand.keys.up] == "released") {
                     if (hand.has !== null) {
-                        Matter.Composite.remove (engine.world, hand.hasConstraint);
+                        Matter.Composite.remove(engine.world, hand.hasConstraint);
                         hand.hasConstraint = null;
 
                         // Create vector pointing towards look point.
@@ -265,7 +297,7 @@
                 }
             });
 
-            // Check if ball passes middle:
+            // Check if ball passes middle or hits ground:
             {
                 balls.forEach((ball) => {
                     if (ball.side === "left") {
@@ -280,7 +312,12 @@
                             score += 1;
                         }
                     }
-                })
+                    if (ball.body.position.y >= 605) {
+                        gameOver = true;
+                        document.querySelector("#gameOver").style.display = "block";
+                    }
+
+                });
             }
 
 
@@ -298,7 +335,9 @@
             }
 
             prevTime = Date.now();
-            window.requestAnimationFrame(tick);
+            if (!gameOver) {
+                window.requestAnimationFrame(tick);
+            }
         }
         window.requestAnimationFrame(tick);
         Render.run(render);
