@@ -88,7 +88,7 @@
 
         let ball3 = {
             radius: 8,
-            body: Bodies.circle(550, 50, 8, { restitution: 1 }),
+            body: Bodies.circle(600, 50, 8, { restitution: 1 }),
             side: "right"
         };
 
@@ -189,7 +189,7 @@
 
             if (dropTimer > 0) {
                 dropTimer -= delta;
-                Matter.Body.setPosition(ball3.body, { x: 550, y: 50 });
+                Matter.Body.setPosition(ball3.body, { x: 600, y: 50 });
                 Matter.Body.setVelocity(ball3.body, { x: 0, y: 0 });
                 // Q: Why does creating ball3 with isStatic:true, then setting static to false, result in disappearing? A:
             }
