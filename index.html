@@ -2,7 +2,7 @@
 
 -->
 <html>
-
+<title>Juggle</title>
 <head>
     <style type="text/css">
         * {
@@ -31,10 +31,17 @@
             height: 500px;
             display: none;
         }
+        #gameOver h1 {
+            font-size: 4em;
+        }
+        #gameOver p {
+            font-size: 2em;
+        }
 
         #restart {
             color: #000;
         }
+
     </style>
 </head>
 
@@ -42,14 +49,15 @@
     <div id="container">
         <div id="gameOver">
             <h1>Game over</h1>
-            <p><a href='#' id='restart'>Restart</a></p>
+            <p>Press R to <a href='#' id='restart'>Restart</a></p>
         </div>
         <canvas width="800" height="600"></canvas>
-        <p>To play:<p>
+        <p><b>Juggle!</b> To play:<p>
         <ul>
             <li>Move left with W and D. Hold W to throw.</li>
             <li>Move right with &leftarrow; and &rightarrow;. Hold &uparrow; to throw.</li>
         </ul>
+        <p id="updated"><b>Last updated</b>: 2025-05-12. Prototype.</b></p>
     </div>
     <script src="matter.js"></script>
     <script>
@@ -69,7 +77,7 @@
             Events = Matter.Events;
 
         // create an engine
-        var engine = Engine.create({ timing: { timeScale: .8 } });
+        var engine = Engine.create({ timing: { timeScale: 1 } });
 
         let hand_left = {
             keys: {
@@ -83,7 +91,7 @@
             release_timer: 0,
             t: .5,
             pos: { x: 0, y: 0 }, // will be set.
-            radius: 20,
+            radius: 25,
             leftmost: { x: 25, y: 400 },
             rightmost: { x: 365, y: 400 },
 
@@ -101,7 +109,7 @@
             release_timer: 0,
             t: .5,
             pos: { x: 0, y: 0 }, // will be set.
-            radius: 20,
+            radius: 25,
             leftmost: { x: 435, y: 400 },
             rightmost: { x: 775, y: 400 },
         };
@@ -154,6 +162,9 @@
                 if (keys[evt.key] !== "down") {
                     keys[evt.key] = "pressed";
                 }
+            }
+            if (evt.key == "r" && gameOver) {
+                window.location.reload();
             }
         });
 
@@ -228,9 +239,9 @@
                 if (hand.release_timer > 0) {
                     let diff = { x: look.x - hand.pos.x, y: look.y - hand.pos.y };
                     let diff_norm = Matter.Vector.normalise(diff);
-                    let magnitude = 15 + 5 * (hand.release_timer / 500);
+                    let magnitude = 20 + 5 * (hand.release_timer / 500);
                     let vel = Matter.Vector.mult(diff_norm, magnitude);
-                    let off = Matter.Vector.mult(diff_norm, 20);
+                    let off = Matter.Vector.mult(diff_norm, 25);
                     let start = {x: hand.pos.x + off.x, y: hand.pos.y + off.y}
                     drawArrow(start, vel);
                 }
@@ -298,10 +309,10 @@
                 // Move hand
                 {
                     if (keys[hand.keys.left] == "down") {
-                        hand.t -= .002 * delta;
+                        hand.t -= .0017 * delta;
                         if (hand.t < 0) hand.t = 0;
                     } else if (keys[hand.keys.right] == "down") {
-                        hand.t += .002 * delta;
+                        hand.t += .0017 * delta;
                         if (hand.t > 1) hand.t = 1;
                     }
                     hand.pos = interpolate(hand.leftmost, hand.rightmost, hand.t);
