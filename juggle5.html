@@ -8,16 +8,22 @@
         * {
             font-family: monospace;
         }
+
         #container {
             width: 800px;
             margin: 0px auto;
             position: relative;
         }
-        #container > #gameOver {
+
+        canvas {
+            background: #000;
+        }
+
+        #container>#gameOver {
             position: absolute;
-            top: 0px; 
+            top: 0px;
             left: 0px;
-            background: rgba(255,255,255,.8);
+            background: rgba(255, 255, 255, .8);
             padding-top: 100px;
             color: #000;
             text-align: center;
@@ -25,6 +31,7 @@
             height: 500px;
             display: none;
         }
+
         #restart {
             color: #000;
         }
@@ -37,7 +44,12 @@
             <h1>Game over</h1>
             <p><a href='#' id='restart'>Restart</a></p>
         </div>
-        <canvas></canvas>
+        <canvas width="800" height="600"></canvas>
+        <p>To play:<p>
+        <ul>
+            <li>Move left with W and D. Hold W to throw.</li>
+            <li>Move right with &leftarrow; and &rightarrow;. Hold &uparrow; to throw.</li>
+        </ul>
     </div>
     <script src="matter.js"></script>
     <script>
@@ -59,12 +71,6 @@
         // create an engine
         var engine = Engine.create({ timing: { timeScale: .8 } });
 
-        // create a renderer
-        var render = Render.create({
-            canvas: document.querySelector("canvas"),
-            engine: engine,
-        });
-
         let hand_left = {
             keys: {
                 left: "a",
@@ -78,8 +84,8 @@
             t: .5,
             pos: { x: 0, y: 0 }, // will be set.
             radius: 20,
-            leftmost: { x: 50, y: 400 },
-            rightmost: { x: 350, y: 400 },
+            leftmost: { x: 25, y: 400 },
+            rightmost: { x: 365, y: 400 },
 
         };
 
@@ -96,8 +102,8 @@
             t: .5,
             pos: { x: 0, y: 0 }, // will be set.
             radius: 20,
-            leftmost: { x: 450, y: 400 },
-            rightmost: { x: 750, y: 400 },
+            leftmost: { x: 435, y: 400 },
+            rightmost: { x: 775, y: 400 },
         };
 
         let hands = [hand_left, hand_right];
@@ -162,61 +168,87 @@
             return { x: p1.x + diff.x * t, y: p1.y + diff.y * t };
         }
 
-        function drawSegment(start, vec) {
-            let savedStrokeStyle = render.context.strokeStyle;
-            render.context.strokeStyle = "#F00";
-            render.context.beginPath();
-            render.context.lineTo(start.x, start.y);
-            render.context.lineTo(start.x + vec.x, start.y + vec.y);
-            render.context.stroke();
-            render.context.strokeStyle = savedStrokeStyle;
+        function drawArrow(start, vec) {
+            ctx.strokeStyle = "#FFF";
+            ctx.lineWidth = 5;
+            ctx.beginPath();
+            ctx.lineJoin = "miter";
+            ctx.lineTo(start.x, start.y);
+            ctx.lineTo(start.x + vec.x, start.y + vec.y);
+            ctx.stroke();
+
+            // Draw triangle.
+            let center = Matter.Vector.mult(vec, 1.5);
+            let right = Matter.Vector.rotate (vec, .5);
+            let left = Matter.Vector.rotate (vec, -.5);
+
+            ctx.beginPath();
+            ctx.lineTo(start.x + center.x, start.y + center.y);
+            ctx.lineTo(start.x + right.x, start.y + right.y);
+            ctx.lineTo(start.x + left.x, start.y + left.y);
+            ctx.lineTo(start.x + center.x, start.y + center.y);
+            ctx.fill();
         }
 
-        Events.on(render, "afterRender", () => {
-            // Draw center line.
-            render.context.beginPath();
-            render.context.lineTo(400, 0);
-            render.context.lineTo(400, 600);
-            render.context.stroke();
+        let ctx = document.querySelector("canvas").getContext("2d");
+        function render() {
+            const w = 800;
+            const h = 600;
+            ctx.clearRect(0, 0, w, h);
 
-            render.context.beginPath();
-            render.context.lineTo(400, 0);
-            render.context.lineTo(400, 600);
-            render.context.stroke();
-
-            // Draw look point.
-            render.context.beginPath();
-            render.context.fillStyle = "#FFF";
-            render.context.arc(look.x, look.y, 5, 0, Math.PI * 2);
-            render.context.fill();
-
+            // Draw "hands".
+            ctx.strokeStyle = "#FFF";
             hands.forEach((hand) => {
-                // Draw arrow.
-                {
-                    let diff = { x: look.x - hand.pos.x, y: look.y - hand.pos.y };
-                    let diff_norm = Matter.Vector.normalise(diff);
-                    let magnitude = 50 * (hand.release_timer / 500);
-                    let vel = Matter.Vector.mult(diff_norm, magnitude);
-                    drawSegment(hand.pos, vel);
-                }
-
-                // Draw circle.
-                {
-                    render.context.beginPath();
-                    render.context.arc(hand.pos.x, hand.pos.y, hand.radius, 0, Math.PI * 2);
-                    render.context.stroke();
-                }
+                ctx.beginPath();
+                ctx.lineWidth = hand.has === null ? 2 : 4;
+                ctx.arc(hand.pos.x, hand.pos.y, hand.radius, 0, Math.PI * 2);
+                ctx.stroke();
             });
 
+            // Draw balls:
+            ctx.fillStyle = "#FFF";
+            balls.forEach((ball) => {
+                ctx.beginPath();
+                ctx.arc(ball.body.position.x, ball.body.position.y, ball.radius, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // Draw center line:
+            ctx.setLineDash([5,10]);
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(400,0);
+            ctx.lineTo(400,600);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Draw arrows:
+            hands.forEach((hand) => {
+                // Draw arrow.
+                if (hand.release_timer > 0) {
+                    let diff = { x: look.x - hand.pos.x, y: look.y - hand.pos.y };
+                    let diff_norm = Matter.Vector.normalise(diff);
+                    let magnitude = 15 + 5 * (hand.release_timer / 500);
+                    let vel = Matter.Vector.mult(diff_norm, magnitude);
+                    let off = Matter.Vector.mult(diff_norm, 20);
+                    let start = {x: hand.pos.x + off.x, y: hand.pos.y + off.y}
+                    drawArrow(start, vel);
+                }
+            });
+            
             if (dropTimer > 0) {
-                render.context.fillText("" + Math.ceil(dropTimer / 1000), 10, 10);
+                ctx.font = "20px monospace";
+                ctx.fillText("" + Math.ceil(dropTimer / 1000),  ball3.body.position.x - 30, ball3.body.position.y + 20);
+                // Draw down arrow.
+                drawArrow ({x: ball3.body.position.x, y: ball3.body.position.y + ball3.radius + 5}, {x: 0, y: 20})
             }
 
-            render.context.fillText("" + score, 402, 590);
-        });
+            ctx.fillText("Score: " + score, 10, 590);
+        }
 
         function tick() {
-            Engine.update(engine, Math.min(Date.now() - prevTime, 1000 / 30));
+            render();
+            Engine.update(engine, Math.min(Date.now() - prevTime, 1000 / 60));
             let delta = engine.timing.lastDelta;
 
             if (dropTimer > 0) {
@@ -340,7 +372,7 @@
             }
         }
         window.requestAnimationFrame(tick);
-        Render.run(render);
+        // Render.run(render);
     </script>
 </body>
 
