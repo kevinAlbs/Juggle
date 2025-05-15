@@ -1,9 +1,9 @@
-<!--
-
--->
 <html>
 <title>Juggle</title>
 <head>
+    <!-- recaptcha -->
+    <script src="https://www.google.com/recaptcha/api.js?render=6LeucTorAAAAAPSTuZGpCXuE-vNXK3EYxH-VOf2O"></script>
+
     <style type="text/css">
         * {
             font-family: monospace;
@@ -42,6 +42,15 @@
             color: #000;
         }
 
+        .hidden {
+            display: none;
+        }
+
+        /* hide reCaptcha badge */
+        .grecaptcha-badge {
+            display: none !important;
+        }
+
     </style>
 </head>
 
@@ -50,6 +59,11 @@
         <div id="gameOver">
             <h1>Game over</h1>
             <p>Press R to <a href='#' id='restart'>Restart</a></p>
+            <div id="last_score_section">
+                <span id="last_score"></span>
+                &bullet;
+                <a href="#" id="submit_last_score">Submit to leaderboard</a>
+            </div>
         </div>
         <canvas width="800" height="600"></canvas>
         <p><b>Juggle!</b> To play:<p>
@@ -57,8 +71,17 @@
             <li>Move left with A and D. Hold W to throw.</li>
             <li>Move right with &leftarrow; and &rightarrow;. Hold &uparrow; to throw.</li>
         </ul>
-        <p id="updated"><b>Last updated</b>: 2025-05-14. Fix typo.</b></p>
+        
+        <div id="high_score_section">
+            <a href="/juggle/leaderboard/" target="_blank" id="show_high_score_link">See leaderboard</a>
+            &bullet;
+            <span id="high_score"></span>
+            <a href="#" id="submit_high_score" class="hidden">(submit)</a>
+        </div>
+        <div></div>
+        <p id="updated">See <a href="https://github.com/kevinAlbs/juggle">source on GitHub</a>. Last updated 2025-05-14: Add leaderboard.</b></p>
     </div>
+    <script src="leaderboard.js"></script>
     <script src="matter.js"></script>
     <script>
         document.querySelector("#restart").addEventListener("click", (e) => {
@@ -347,12 +370,14 @@
                         if (ball.body.position.x > 400) {
                             ball.side = "right";
                             score += 1;
+                            leaderboard.setScore(score);
                         }
                     }
                     if (ball.side === "right") {
                         if (ball.body.position.x < 400) {
                             ball.side = "left";
                             score += 1;
+                            leaderboard.setScore(score);
                         }
                     }
                     if (ball.body.position.y >= 605) {
@@ -383,7 +408,6 @@
             }
         }
         window.requestAnimationFrame(tick);
-        // Render.run(render);
     </script>
 </body>
 
