@@ -29,11 +29,14 @@ var leaderboard = (function() {
 
         if (highScore.submitted || highScore.score == 0) {
             submit_high_score_el.classList.add("hidden");
+            document.querySelector("#high_score_sep2").classList.add("hidden");
         } else {
             submit_high_score_el.classList.remove("hidden");
+            document.querySelector("#high_score_sep2").classList.remove("hidden");
         }
-
-        document.querySelector("#last_score").innerHTML = "Last score: " + lastScore.score;
+        
+        document.querySelector("#last_score").innerHTML = "Score: " + lastScore.score;
+        document.querySelector("#high_score_sep1").classList.remove("hidden");
         document.querySelector("#high_score").innerHTML = "Local best: " + highScore.score;
 
         // Update local storage.

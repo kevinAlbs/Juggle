@@ -34,7 +34,7 @@
         #gameOver h1 {
             font-size: 4em;
         }
-        #gameOver p {
+        #gameOver p, #gameOver div {
             font-size: 2em;
         }
 
@@ -74,9 +74,10 @@
         
         <div id="high_score_section">
             <a href="/juggle/leaderboard/" target="_blank" id="show_high_score_link">See leaderboard</a>
-            &bullet;
+            <span id="high_score_sep1" class="hidden">&bullet;</span>
             <span id="high_score"></span>
-            <a href="#" id="submit_high_score" class="hidden">(submit)</a>
+            <span id="high_score_sep2" class="hidden">&bullet;</span>
+            <a href="#" id="submit_high_score" class="hidden">Submit Score</a>
         </div>
         <div></div>
         <p id="updated">See <a href="https://github.com/kevinAlbs/juggle">source on GitHub</a>. Last updated 2025-05-14: Add leaderboard.</b></p>
