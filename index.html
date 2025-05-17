@@ -326,12 +326,12 @@
             let ball2 = {
                 radius: 8,
                 body: Bodies.circle(-100 /* set later */, -200 /* set later */, 8, { restitution: 1 }),
-                side: "right"
+                side: "left"
             };
 
             let ball3 = {
                 radius: 8,
-                body: Bodies.circle(-100 /* set later */, -300 /* set later */, 8, { restitution: 1 }),
+                body: Bodies.circle(1000 /* set later */, -300 /* set later */, 8, { restitution: 1 }),
                 side: "right"
             };
 
@@ -473,7 +473,7 @@
                     // Q: Why does creating ball3 with isStatic:true, then setting static to false, result in disappearing? A:
                     Matter.Body.setVelocity(ball3.body, { x: 0, y: 0 });
                     if (startSequence != "dropping1") {
-                        Matter.Body.setPosition(ball3.body, { x: -100, y: -300 });
+                        Matter.Body.setPosition(ball3.body, { x: 1000, y: -300 });
                     }
                 }
 
