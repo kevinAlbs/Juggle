@@ -1,14 +1,15 @@
 <html>
 <title>Juggle</title>
+
 <head>
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-Y5D1MH1869"></script>
     <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
 
-    gtag('config', 'G-Y5D1MH1869');
+        gtag('config', 'G-Y5D1MH1869');
     </script>
 
 
@@ -43,10 +44,13 @@
             height: 500px;
             display: none;
         }
+
         #gameOver h1 {
             font-size: 4em;
         }
-        #gameOver p, #gameOver div {
+
+        #gameOver p,
+        #gameOver div {
             font-size: 2em;
         }
 
@@ -62,7 +66,6 @@
         .grecaptcha-badge {
             display: none !important;
         }
-
     </style>
 </head>
 
@@ -72,18 +75,19 @@
             <h1>Game over</h1>
             <p>Press R to <a href='#' id='restart'>Restart</a></p>
             <div id="last_score_section" class="hidden">
-                <span id="last_score"></span><br/>
+                <span id="last_score"></span><br />
                 <a href="#" id="submit_last_score">Submit to leaderboard</a>
             </div>
         </div>
         <canvas width="800" height="600"></canvas>
-        <p><b>Juggle!</b> To play:<p>
+        <p><b>Juggle!</b> To play:
+        <p>
         <ul>
             <li>Move left with A and D. Hold W to throw.</li>
             <li>Move right with &leftarrow; and &rightarrow;. Hold &uparrow; to throw.</li>
             <li>See <a href="gameplay.gif">sample gameplay</a>.</li>
         </ul>
-        
+
         <div id="high_score_section">
             <a href="/juggle/leaderboard/" target="_blank" id="show_high_score_link">See leaderboard</a>
             <span id="high_score_sep1" class="hidden">&bullet;</span>
@@ -92,335 +96,489 @@
             <a href="#" id="submit_high_score" class="hidden">Submit Score</a>
         </div>
         <div></div>
-        <p id="updated">See <a href="https://github.com/kevinAlbs/juggle">source on GitHub</a>. Last updated 2025-05-16: Hide submit on no score.</b></p>
+        <p id="updated">See <a href="https://github.com/kevinAlbs/juggle">source on GitHub</a>. Last updated 2025-05-16:
+            Hide submit on no score.</b></p>
     </div>
-    <script src="leaderboard.js"></script>
     <script src="matter.js"></script>
     <script>
-        document.querySelector("#restart").addEventListener("click", (e) => {
-            e.preventDefault();
-            window.location.reload();
-            return false;
-        })
-        let gameOver = false;
-        let score = 0;
-        let dropTimer = 3000;
-        // module aliases
-        var Engine = Matter.Engine,
-            Render = Matter.Render,
-            Bodies = Matter.Bodies,
-            Composite = Matter.Composite,
-            Events = Matter.Events;
+        (function () {
+            var leaderboard = (function () {
+                // For recaptcha.
+                const site_key = "6LeucTorAAAAAPSTuZGpCXuE-vNXK3EYxH-VOf2O";
 
-        // create an engine
-        var engine = Engine.create({ timing: { timeScale: 1 } });
+                let lastScore = {
+                    set: false,
+                    score: 0,
+                    scoreid: "",
+                    date: 0,
+                    submitted: false,
+                    hidden: false // Only not hidden between restarts.
+                };
 
-        let hand_left = {
-            keys: {
-                left: "a",
-                right: "d",
-                up: "w"
-            },
-            has: null,
-            hasConstraint: null,
-            released: null,
-            release_timer: 0,
-            t: .5,
-            pos: { x: -100, y: -100 }, // will be set.
-            radius: 25,
-            leftmost: { x: 25, y: 400 },
-            rightmost: { x: 365, y: 400 },
+                let highScore = {
+                    set: false,
+                    score: 0,
+                    scoreid: "",
+                    date: 0,
+                    submitted: false
+                };
 
-        };
-
-        let hand_right = {
-            keys: {
-                left: "ArrowLeft",
-                right: "ArrowRight",
-                up: "ArrowUp"
-            },
-            has: null,
-            hasConstraint: null,
-            released: null,
-            release_timer: 0,
-            t: .5,
-            pos: { x: -100, y: -100 }, // will be set.
-            radius: 25,
-            leftmost: { x: 435, y: 400 },
-            rightmost: { x: 775, y: 400 },
-        };
-
-        let hands = [hand_left, hand_right];
-
-        // `look` is the point at which the hands look at.
-        const look = {
-            x: 400,
-            y: 60
-        }
-
-        let ball1 = {
-            radius: 8,
-            body: Bodies.circle(200, 390, 8, { restitution: 1 }),
-            side: "left"
-        };
-
-        let ball2 = {
-            radius: 8,
-            body: Bodies.circle(600, 390, 8, { restitution: 1 }),
-            side: "right"
-        };
-
-        let ball3 = {
-            radius: 8,
-            body: Bodies.circle(600, 50, 8, { restitution: 1 }),
-            side: "right"
-        };
-
-        let balls = [ball1, ball2, ball3];
-
-        // add all of the bodies to the world
-        Composite.add(engine.world, [ball1.body, ball2.body, ball3.body]);
-
-        let prevTime = Date.now();
-        let keys = {
-            w: "up",
-            a: "up",
-            s: "up",
-            d: "up",
-            ArrowLeft: "up",
-            ArrowRight: "up",
-            ArrowUp: "up",
-            ArrowDown: "up"
-        }
-
-        document.addEventListener("keydown", function (evt) {
-            if (evt.key in keys) {
-                if (keys[evt.key] !== "down") {
-                    keys[evt.key] = "pressed";
-                }
-            }
-            if (evt.key == "r" && gameOver) {
-                window.location.reload();
-            }
-        });
-
-        document.addEventListener("keyup", function (evt) {
-            if (evt.key in keys) {
-                keys[evt.key] = "released";
-            }
-        });
-
-        function interpolate(p1, p2, t) {
-            let diff = { x: p2.x - p1.x, y: p2.y - p1.y };
-            return { x: p1.x + diff.x * t, y: p1.y + diff.y * t };
-        }
-
-        function drawArrow(start, vec) {
-            ctx.strokeStyle = "#FFF";
-            ctx.lineWidth = 5;
-            ctx.beginPath();
-            ctx.lineJoin = "miter";
-            ctx.lineTo(start.x, start.y);
-            ctx.lineTo(start.x + vec.x, start.y + vec.y);
-            ctx.stroke();
-
-            // Draw triangle.
-            let center = Matter.Vector.mult(vec, 1.5);
-            let right = Matter.Vector.rotate (vec, .5);
-            let left = Matter.Vector.rotate (vec, -.5);
-
-            ctx.beginPath();
-            ctx.lineTo(start.x + center.x, start.y + center.y);
-            ctx.lineTo(start.x + right.x, start.y + right.y);
-            ctx.lineTo(start.x + left.x, start.y + left.y);
-            ctx.lineTo(start.x + center.x, start.y + center.y);
-            ctx.fill();
-        }
-
-        let ctx = document.querySelector("canvas").getContext("2d");
-        function render() {
-            const w = 800;
-            const h = 600;
-            ctx.clearRect(0, 0, w, h);
-
-            // Draw "hands".
-            ctx.strokeStyle = "#FFF";
-            hands.forEach((hand) => {
-                ctx.beginPath();
-                ctx.lineWidth = hand.has === null ? 2 : 4;
-                ctx.arc(hand.pos.x, hand.pos.y, hand.radius, 0, Math.PI * 2);
-                ctx.stroke();
-            });
-
-            // Draw balls:
-            ctx.fillStyle = "#FFF";
-            balls.forEach((ball) => {
-                ctx.beginPath();
-                ctx.arc(ball.body.position.x, ball.body.position.y, ball.radius, 0, Math.PI * 2);
-                ctx.fill();
-            });
-
-            // Draw center line:
-            ctx.setLineDash([5,10]);
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(400,0);
-            ctx.lineTo(400,600);
-            ctx.stroke();
-            ctx.setLineDash([]);
-
-            // Draw arrows:
-            hands.forEach((hand) => {
-                // Draw arrow.
-                if (hand.release_timer > 0) {
-                    let diff = { x: look.x - hand.pos.x, y: look.y - hand.pos.y };
-                    let diff_norm = Matter.Vector.normalise(diff);
-                    let magnitude = 20 + 5 * (hand.release_timer / 500);
-                    let vel = Matter.Vector.mult(diff_norm, magnitude);
-                    let off = Matter.Vector.mult(diff_norm, 25);
-                    let start = {x: hand.pos.x + off.x, y: hand.pos.y + off.y}
-                    drawArrow(start, vel);
-                }
-            });
-            
-            if (dropTimer > 0) {
-                ctx.font = "20px monospace";
-                ctx.fillText("" + Math.ceil(dropTimer / 1000),  ball3.body.position.x - 30, ball3.body.position.y + 20);
-                // Draw down arrow.
-                drawArrow ({x: ball3.body.position.x, y: ball3.body.position.y + ball3.radius + 5}, {x: 0, y: 20})
-            }
-
-            ctx.fillText("Score: " + score, 10, 590);
-        }
-
-        function tick() {
-            render();
-            Engine.update(engine, Math.min(Date.now() - prevTime, 1000 / 60));
-            let delta = engine.timing.lastDelta;
-
-            if (dropTimer > 0) {
-                dropTimer -= delta;
-                Matter.Body.setPosition(ball3.body, { x: 600, y: 50 });
-                Matter.Body.setVelocity(ball3.body, { x: 0, y: 0 });
-                // Q: Why does creating ball3 with isStatic:true, then setting static to false, result in disappearing? A:
-            }
-
-            hands.forEach((hand) => {
-                // Check for ball collisions
-                balls.forEach((ball) => {
-                    if (hand.has == null) {
-                        let distSq = Math.pow(ball.body.position.x - hand.pos.x, 2) + Math.pow(ball.body.position.y - hand.pos.y, 2);
-                        if (distSq < Math.pow(hand.radius + ball.radius, 2)) {
-                            if (hand.released == ball) {
-                                // Ball was just released. Do not hold again until it is beyond distance.
-                                return;
-                            }
-                            hand.has = ball;
-
-                            hand.hasConstraint = Matter.Constraint.create({
-                                bodyA: hand.has.body,
-                                pointB: hand.pos,
-                                length: 0,
-                                stiffness: .1
-                            })
-                            Matter.Composite.add(engine.world, [hand.hasConstraint])
-                        } else if (hand.released == ball && distSq > Math.pow(hand.radius + ball.radius + 5, 2)) {
-                            // Ball was just released, and is far enough away to consider to hold again.
-                            hand.released = null;
-                        }
+                function applyScores() {
+                    // Update UI.
+                    if (lastScore.submitted || lastScore.score == 0) {
+                        document.querySelector("#last_score_section").classList.add("hidden");
+                    } else if (!lastScore.hidden) {
+                        document.querySelector("#last_score_section").classList.remove("hidden");
                     }
+
+                    if (highScore.submitted || highScore.score == 0) {
+                        submit_high_score_el.classList.add("hidden");
+                        document.querySelector("#high_score_sep2").classList.add("hidden");
+                    } else {
+                        submit_high_score_el.classList.remove("hidden");
+                        document.querySelector("#high_score_sep2").classList.remove("hidden");
+                    }
+
+                    document.querySelector("#last_score").innerHTML = "Score: " + lastScore.score;
+                    document.querySelector("#high_score_sep1").classList.remove("hidden");
+                    document.querySelector("#high_score").innerHTML = "Local best: " + highScore.score;
+
+                    // Update local storage.
+                    if (highScore.set && highScore.score != 0) {
+                        localStorage.setItem("juggle_highScore", JSON.stringify(highScore));
+                    }
+                }
+
+                const submit_last_score_el = document.querySelector("#submit_last_score");
+                submit_last_score_el.addEventListener("click", function (e) {
+                    submitScore(lastScore, function () {
+                        lastScore.submitted = true;
+                        if (lastScore.scoreid == highScore.scoreid) {
+                            highScore.submitted = true;
+                        }
+                        applyScores();
+                    });
+                    e.preventDefault();
                 });
 
-                // Check for release.
-                if (hand.has !== null) {
-                    if (keys[hand.keys.up] == "pressed") {
-                        // Check for long press.
-                        hand.release_timer = 0;
-                    } else if (keys[hand.keys.up] == "down") {
-                        hand.release_timer += delta;
-                        hand.release_timer = Math.min(500, hand.release_timer);
+                const submit_high_score_el = document.querySelector("#submit_high_score");
+                submit_high_score_el.addEventListener("click", function (e) {
+                    submitScore(highScore, function () {
+                        highScore.submitted = true;
+                        applyScores();
+                    });
+                    e.preventDefault();
+                });
+
+                function loadScore() {
+                    const highScore_json = localStorage.getItem("juggle_highScore");
+                    if (!highScore_json) {
+                        return;
+                    }
+                    highScore = JSON.parse(highScore_json);
+                    applyScores();
+                }
+                loadScore();
+
+                function getUUID() {
+                    if (window.isSecureContext) {
+                        return crypto.randomUUID();
+                    } else {
+                        return "" + Math.floor(Math.random() * 10000000);
                     }
                 }
 
-                // Move hand
-                {
-                    if (keys[hand.keys.left] == "down") {
-                        hand.t -= .0017 * delta;
-                        if (hand.t < 0) hand.t = 0;
-                    } else if (keys[hand.keys.right] == "down") {
-                        hand.t += .0017 * delta;
-                        if (hand.t > 1) hand.t = 1;
+
+                function setScore(score) {
+                    if (score == 0) {
+                        return;
                     }
-                    hand.pos = interpolate(hand.leftmost, hand.rightmost, hand.t);
-                    if (hand.hasConstraint != null) {
-                        hand.hasConstraint.pointB = hand.pos;
+
+                    lastScore.set = true;
+                    lastScore.score = score;
+                    lastScore.scoreid = getUUID();
+                    lastScore.date = Date.now();
+                    lastScore.submitted = false;
+
+                    if (!highScore.set || score > highScore.score) {
+                        highScore.set = lastScore.set;
+                        highScore.score = lastScore.score;
+                        highScore.scoreid = lastScore.scoreid;
+                        highScore.date = lastScore.date;
+                        highScore.submitted = lastScore.submitted;
                     }
+
+                    applyScores();
                 }
 
+                function submitScore(scoreObj, on_success) {
+                    const name = prompt("Enter name");
+                    if (name == null) {
+                        return;
+                    }
+                    if (name.trim() == "") {
+                        return;
+                    }
 
-                if (keys[hand.keys.up] == "released") {
-                    if (hand.has !== null) {
-                        Matter.Composite.remove(engine.world, hand.hasConstraint);
-                        hand.hasConstraint = null;
+                    grecaptcha.ready(function () {
+                        grecaptcha.execute(site_key, { action: 'submit' }).then(function (token) {
+                            const fd = new FormData();
+                            fd.append("token", token);
+                            fd.append("name", name);
+                            fd.append("score", "" + scoreObj.score);
+                            fd.append("scoreid", scoreObj.scoreid);
+                            fd.append("date", "" + scoreObj.date);
+                            return fetch("leaderboard/submit.php", {
+                                method: "POST",
+                                body: fd
+                            });
+                        }).then(function (res) {
+                            return res.json()
+                        }).then(function (res) {
+                            if (!res["ok"]) {
+                                alert("Error submitting score: " + res["msg"]);
+                            } else {
+                                alert("Score saved");
+                                if (on_success) {
+                                    on_success();
+                                }
+                            }
+                        }).catch(function (res) {
+                            console.log("Unexpected error submitting score", res);
+                            alert("Unexpected error submitting score. See Developer Tools for more information.");
+                        });
+                    });
+                }
 
-                        // Create vector pointing towards look point.
+                return {
+                    setScore: setScore
+                }
+            })();
+            document.querySelector("#restart").addEventListener("click", (e) => {
+                e.preventDefault();
+                window.location.reload();
+                return false;
+            })
+            let gameOver = false;
+            let score = 0;
+            let dropTimer = 3000;
+            // module aliases
+            var Engine = Matter.Engine,
+                Render = Matter.Render,
+                Bodies = Matter.Bodies,
+                Composite = Matter.Composite,
+                Events = Matter.Events;
+
+            // create an engine
+            var engine = Engine.create({ timing: { timeScale: 1 } });
+
+            let hand_left = {
+                keys: {
+                    left: "a",
+                    right: "d",
+                    up: "w"
+                },
+                has: null,
+                hasConstraint: null,
+                released: null,
+                release_timer: 0,
+                t: .5,
+                pos: { x: -100, y: -100 }, // will be set.
+                radius: 25,
+                leftmost: { x: 25, y: 400 },
+                rightmost: { x: 365, y: 400 },
+
+            };
+
+            let hand_right = {
+                keys: {
+                    left: "ArrowLeft",
+                    right: "ArrowRight",
+                    up: "ArrowUp"
+                },
+                has: null,
+                hasConstraint: null,
+                released: null,
+                release_timer: 0,
+                t: .5,
+                pos: { x: -100, y: -100 }, // will be set.
+                radius: 25,
+                leftmost: { x: 435, y: 400 },
+                rightmost: { x: 775, y: 400 },
+            };
+
+            let hands = [hand_left, hand_right];
+
+            // `look` is the point at which the hands look at.
+            const look = {
+                x: 400,
+                y: 60
+            }
+
+            let ball1 = {
+                radius: 8,
+                body: Bodies.circle(200, 390, 8, { restitution: 1 }),
+                side: "left"
+            };
+
+            let ball2 = {
+                radius: 8,
+                body: Bodies.circle(600, 390, 8, { restitution: 1 }),
+                side: "right"
+            };
+
+            let ball3 = {
+                radius: 8,
+                body: Bodies.circle(600, 50, 8, { restitution: 1 }),
+                side: "right"
+            };
+
+            let balls = [ball1, ball2, ball3];
+
+            // add all of the bodies to the world
+            Composite.add(engine.world, [ball1.body, ball2.body, ball3.body]);
+
+            let prevTime = Date.now();
+            let keys = {
+                w: "up",
+                a: "up",
+                s: "up",
+                d: "up",
+                ArrowLeft: "up",
+                ArrowRight: "up",
+                ArrowUp: "up",
+                ArrowDown: "up"
+            }
+
+            document.addEventListener("keydown", function (evt) {
+                if (evt.key in keys) {
+                    if (keys[evt.key] !== "down") {
+                        keys[evt.key] = "pressed";
+                    }
+                }
+                if (evt.key == "r" && gameOver) {
+                    window.location.reload();
+                }
+            });
+
+            document.addEventListener("keyup", function (evt) {
+                if (evt.key in keys) {
+                    keys[evt.key] = "released";
+                }
+            });
+
+            function interpolate(p1, p2, t) {
+                let diff = { x: p2.x - p1.x, y: p2.y - p1.y };
+                return { x: p1.x + diff.x * t, y: p1.y + diff.y * t };
+            }
+
+            function drawArrow(start, vec) {
+                ctx.strokeStyle = "#FFF";
+                ctx.lineWidth = 5;
+                ctx.beginPath();
+                ctx.lineJoin = "miter";
+                ctx.lineTo(start.x, start.y);
+                ctx.lineTo(start.x + vec.x, start.y + vec.y);
+                ctx.stroke();
+
+                // Draw triangle.
+                let center = Matter.Vector.mult(vec, 1.5);
+                let right = Matter.Vector.rotate(vec, .5);
+                let left = Matter.Vector.rotate(vec, -.5);
+
+                ctx.beginPath();
+                ctx.lineTo(start.x + center.x, start.y + center.y);
+                ctx.lineTo(start.x + right.x, start.y + right.y);
+                ctx.lineTo(start.x + left.x, start.y + left.y);
+                ctx.lineTo(start.x + center.x, start.y + center.y);
+                ctx.fill();
+            }
+
+            let ctx = document.querySelector("canvas").getContext("2d");
+            function render() {
+                const w = 800;
+                const h = 600;
+                ctx.clearRect(0, 0, w, h);
+
+                // Draw "hands".
+                ctx.strokeStyle = "#FFF";
+                hands.forEach((hand) => {
+                    ctx.beginPath();
+                    ctx.lineWidth = hand.has === null ? 2 : 4;
+                    ctx.arc(hand.pos.x, hand.pos.y, hand.radius, 0, Math.PI * 2);
+                    ctx.stroke();
+                });
+
+                // Draw balls:
+                ctx.fillStyle = "#FFF";
+                balls.forEach((ball) => {
+                    ctx.beginPath();
+                    ctx.arc(ball.body.position.x, ball.body.position.y, ball.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+
+                // Draw center line:
+                ctx.setLineDash([5, 10]);
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(400, 0);
+                ctx.lineTo(400, 600);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                // Draw arrows:
+                hands.forEach((hand) => {
+                    // Draw arrow.
+                    if (hand.release_timer > 0) {
                         let diff = { x: look.x - hand.pos.x, y: look.y - hand.pos.y };
                         let diff_norm = Matter.Vector.normalise(diff);
-                        let magnitude = 9 + 7 * (hand.release_timer / 500);
-                        hand.release_timer = 0;
+                        let magnitude = 20 + 5 * (hand.release_timer / 500);
                         let vel = Matter.Vector.mult(diff_norm, magnitude);
-                        Matter.Body.setVelocity(hand.has.body, vel);
-                        hand.released = hand.has;
-                        hand.has = null;
+                        let off = Matter.Vector.mult(diff_norm, 25);
+                        let start = { x: hand.pos.x + off.x, y: hand.pos.y + off.y }
+                        drawArrow(start, vel);
                     }
-                }
-            });
-
-            // Check if ball passes middle or hits ground:
-            {
-                balls.forEach((ball) => {
-                    if (ball.side === "left") {
-                        if (ball.body.position.x > 400) {
-                            ball.side = "right";
-                            score += 1;
-                            leaderboard.setScore(score);
-                        }
-                    }
-                    if (ball.side === "right") {
-                        if (ball.body.position.x < 400) {
-                            ball.side = "left";
-                            score += 1;
-                            leaderboard.setScore(score);
-                        }
-                    }
-                    if (ball.body.position.y >= 605) {
-                        gameOver = true;
-                        document.querySelector("#gameOver").style.display = "block";
-                    }
-
                 });
+
+                if (dropTimer > 0) {
+                    ctx.font = "20px monospace";
+                    ctx.fillText("" + Math.ceil(dropTimer / 1000), ball3.body.position.x - 30, ball3.body.position.y + 20);
+                    // Draw down arrow.
+                    drawArrow({ x: ball3.body.position.x, y: ball3.body.position.y + ball3.radius + 5 }, { x: 0, y: 20 })
+                }
+
+                ctx.fillText("Score: " + score, 10, 590);
             }
 
+            function tick() {
+                render();
+                Engine.update(engine, Math.min(Date.now() - prevTime, 1000 / 60));
+                let delta = engine.timing.lastDelta;
 
-            // Handle keys:
-            {
-                for (key in keys) {
-                    if (!keys.hasOwnProperty(key)) continue;
-                    // Transition any "released" keys to "up".
-                    // A "released" state only applies for one tick.
-                    if (keys[key] == "released") keys[key] = "up";
-                    // Transition any "pressed" keys to "down".
-                    // A "pressed" state only applies for one tick.
-                    if (keys[key] == "pressed") keys[key] = "down";
+                if (dropTimer > 0) {
+                    dropTimer -= delta;
+                    Matter.Body.setPosition(ball3.body, { x: 600, y: 50 });
+                    Matter.Body.setVelocity(ball3.body, { x: 0, y: 0 });
+                    // Q: Why does creating ball3 with isStatic:true, then setting static to false, result in disappearing? A:
+                }
+
+                hands.forEach((hand) => {
+                    // Check for ball collisions
+                    balls.forEach((ball) => {
+                        if (hand.has == null) {
+                            let distSq = Math.pow(ball.body.position.x - hand.pos.x, 2) + Math.pow(ball.body.position.y - hand.pos.y, 2);
+                            if (distSq < Math.pow(hand.radius + ball.radius, 2)) {
+                                if (hand.released == ball) {
+                                    // Ball was just released. Do not hold again until it is beyond distance.
+                                    return;
+                                }
+                                hand.has = ball;
+
+                                hand.hasConstraint = Matter.Constraint.create({
+                                    bodyA: hand.has.body,
+                                    pointB: hand.pos,
+                                    length: 0,
+                                    stiffness: .1
+                                })
+                                Matter.Composite.add(engine.world, [hand.hasConstraint])
+                            } else if (hand.released == ball && distSq > Math.pow(hand.radius + ball.radius + 5, 2)) {
+                                // Ball was just released, and is far enough away to consider to hold again.
+                                hand.released = null;
+                            }
+                        }
+                    });
+
+                    // Check for release.
+                    if (hand.has !== null) {
+                        if (keys[hand.keys.up] == "pressed") {
+                            // Check for long press.
+                            hand.release_timer = 0;
+                        } else if (keys[hand.keys.up] == "down") {
+                            hand.release_timer += delta;
+                            hand.release_timer = Math.min(500, hand.release_timer);
+                        }
+                    }
+
+                    // Move hand
+                    {
+                        if (keys[hand.keys.left] == "down") {
+                            hand.t -= .0017 * delta;
+                            if (hand.t < 0) hand.t = 0;
+                        } else if (keys[hand.keys.right] == "down") {
+                            hand.t += .0017 * delta;
+                            if (hand.t > 1) hand.t = 1;
+                        }
+                        hand.pos = interpolate(hand.leftmost, hand.rightmost, hand.t);
+                        if (hand.hasConstraint != null) {
+                            hand.hasConstraint.pointB = hand.pos;
+                        }
+                    }
+
+
+                    if (keys[hand.keys.up] == "released") {
+                        if (hand.has !== null) {
+                            Matter.Composite.remove(engine.world, hand.hasConstraint);
+                            hand.hasConstraint = null;
+
+                            // Create vector pointing towards look point.
+                            let diff = { x: look.x - hand.pos.x, y: look.y - hand.pos.y };
+                            let diff_norm = Matter.Vector.normalise(diff);
+                            let magnitude = 9 + 7 * (hand.release_timer / 500);
+                            hand.release_timer = 0;
+                            let vel = Matter.Vector.mult(diff_norm, magnitude);
+                            Matter.Body.setVelocity(hand.has.body, vel);
+                            hand.released = hand.has;
+                            hand.has = null;
+                        }
+                    }
+                });
+
+                // Check if ball passes middle or hits ground:
+                {
+                    balls.forEach((ball) => {
+                        if (ball.side === "left") {
+                            if (ball.body.position.x > 400) {
+                                ball.side = "right";
+                                score += 1;
+                                leaderboard.setScore(score);
+                            }
+                        }
+                        if (ball.side === "right") {
+                            if (ball.body.position.x < 400) {
+                                ball.side = "left";
+                                score += 1;
+                                leaderboard.setScore(score);
+                            }
+                        }
+                        if (ball.body.position.y >= 605) {
+                            gameOver = true;
+                            document.querySelector("#gameOver").style.display = "block";
+                        }
+
+                    });
+                }
+
+
+                // Handle keys:
+                {
+                    for (key in keys) {
+                        if (!keys.hasOwnProperty(key)) continue;
+                        // Transition any "released" keys to "up".
+                        // A "released" state only applies for one tick.
+                        if (keys[key] == "released") keys[key] = "up";
+                        // Transition any "pressed" keys to "down".
+                        // A "pressed" state only applies for one tick.
+                        if (keys[key] == "pressed") keys[key] = "down";
+                    }
+                }
+
+                prevTime = Date.now();
+                if (!gameOver) {
+                    window.requestAnimationFrame(tick);
                 }
             }
-
-            prevTime = Date.now();
-            if (!gameOver) {
-                window.requestAnimationFrame(tick);
-            }
-        }
-        window.requestAnimationFrame(tick);
+            window.requestAnimationFrame(tick);
+        }());
     </script>
 </body>
 
