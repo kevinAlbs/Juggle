@@ -5,17 +5,21 @@
     <meta name="viewport" content="width=462, maximum-scale=1, user-scalable=no">
     <link rel="icon" type="image/png" href="../favicon.png">
     <style type="text/css">
-        body.dark {
-            background: #333;
+        * {
+            color: #FFF;
+            font-family: monospace;
+            margin: 0px;
+            padding: 0px;
         }
 
-        body.dark h1 {
-            color: #eee;
+        body {
+            background: #000;
         }
 
-        body.dark td,
-        body.dark th {
+
+        body h1 {
             color: #eee;
+            margin-bottom: 1em;
         }
 
         th {
@@ -29,35 +33,24 @@
         body.dark .popup a {
             color: initial;
         }
-
-        * {
-            padding: 0px;
-            margin: 0px;
-            font-family: "Courier New"
-        }
-
         h1 {
             font-size: 20px;
         }
 
         #main {
-            width: 454px;
-            margin: 4px auto;
+            margin: 10px;
         }
 
         #main table {
-            width: 95%;
             margin-bottom: 10px;
             table-layout: fixed;
+            position: relative;
+            left: 70px;
+            font-size: 1.2em;
         }
 
         .entry {
             position: relative;
-            background: #EEE;
-        }
-
-        body.dark .entry {
-            background: #222;
         }
 
         #main table tr td:first-child {
@@ -66,13 +59,15 @@
 
         .entry .place {
             position: absolute;
-            top: 1px;
-            right: 1px;
+            left: 0px;
+            top: 15px;
+            border-radius: 10px;
             display: inline-block;
             color: #111;
             font-weight: bold;
-            background: #F55;
+            background: #FFF;
             padding: 3px;
+            font-size: 2em;
         }
     </style>
 </head>
@@ -98,13 +93,19 @@
         $stmt = $db->prepare("SELECT * FROM scores ORDER BY score DESC LIMIT 100");
         $res = $stmt->execute();
         $place = 1;
+        function leftpad($place) {
+            while (strlen($place) < 3) {
+                $place = "0" . $place;
+            }
+            return $place;
+        }
         while ($row = $res->fetchArray()) {
             echo "<div class='entry'>";
-            echo "<div class='place'>" . $place . "</div>";
+            echo "<div class='place'>" . leftpad($place) . "</div>";
             echo "<table>";
-            printf("<tr><td>Name</td><td>%s</td></tr>", htmlspecialchars($row["name"]));
-            printf("<tr><td>Score</td><td>%s</td></tr>", htmlspecialchars($row["score"]));
-            printf("<tr><td>Date</td><td class='date' data-dateunix='%d'></td></tr>", htmlspecialchars($row["date"]));
+            printf("<tr><td>Name...</td><td>%s</td></tr>", htmlspecialchars($row["name"]));
+            printf("<tr><td>Score..</td><td>%s</td></tr>", htmlspecialchars($row["score"]));
+            printf("<tr><td>Date...</td><td class='date' data-dateunix='%d'></td></tr>", htmlspecialchars($row["date"]));
             echo "</table>";
             echo "</div>";
             $place++;
