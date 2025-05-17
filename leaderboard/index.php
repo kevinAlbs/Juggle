@@ -42,7 +42,7 @@
         }
 
         #main table {
-            margin-bottom: 10px;
+            margin-bottom: 1.2em;
             table-layout: fixed;
             position: relative;
             left: 70px;
