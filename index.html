@@ -96,8 +96,8 @@
             <a href="#" id="submit_high_score" class="hidden">Submit Score</a>
         </div>
         <div></div>
-        <p id="updated">See <a href="https://github.com/kevinAlbs/juggle">source on GitHub</a>. Last updated 2025-05-16:
-            Hide submit on no score.</b></p>
+        <p id="updated">See <a href="https://github.com/kevinAlbs/juggle">source on GitHub</a>. Last updated 2025-05-17:
+            Add start sequence.</b></p>
     </div>
     <script src="matter.js"></script>
     <script>
@@ -261,7 +261,9 @@
             })
             let gameOver = false;
             let score = 0;
-            let dropTimer = 3000;
+            let drop1Timer = 3000, drop2Timer = 3000;
+            let startSequence = "start"; // | delay1 | dropping1 | dropping2
+
             // module aliases
             var Engine = Matter.Engine,
                 Render = Matter.Render,
@@ -283,7 +285,7 @@
                 released: null,
                 release_timer: 0,
                 t: .5,
-                pos: { x: -100, y: -100 }, // will be set.
+                pos: { x: -100, y: 0 }, // will be set.
                 radius: 25,
                 leftmost: { x: 25, y: 400 },
                 rightmost: { x: 365, y: 400 },
@@ -301,7 +303,7 @@
                 released: null,
                 release_timer: 0,
                 t: .5,
-                pos: { x: -100, y: -100 }, // will be set.
+                pos: { x: -100, y: -100 }, // set later.
                 radius: 25,
                 leftmost: { x: 435, y: 400 },
                 rightmost: { x: 775, y: 400 },
@@ -323,13 +325,13 @@
 
             let ball2 = {
                 radius: 8,
-                body: Bodies.circle(600, 390, 8, { restitution: 1 }),
+                body: Bodies.circle(-100 /* set later */, -200 /* set later */, 8, { restitution: 1 }),
                 side: "right"
             };
 
             let ball3 = {
                 radius: 8,
-                body: Bodies.circle(600, 50, 8, { restitution: 1 }),
+                body: Bodies.circle(-100 /* set later */, -300 /* set later */, 8, { restitution: 1 }),
                 side: "right"
             };
 
@@ -440,11 +442,23 @@
                     }
                 });
 
-                if (dropTimer > 0) {
+                if (startSequence == "start") {
                     ctx.font = "20px monospace";
-                    ctx.fillText("" + Math.ceil(dropTimer / 1000), ball3.body.position.x - 30, ball3.body.position.y + 20);
+                    ctx.fillText("Throw to start", hand_left.pos.x - 75, hand_left.pos.y + 50);
+                }
+
+                if (drop1Timer > 0) {
+                    ctx.font = "20px monospace";
+                    ctx.fillText("" + Math.ceil(drop1Timer / 1000), ball3.body.position.x - 30, ball3.body.position.y + 20);
                     // Draw down arrow.
                     drawArrow({ x: ball3.body.position.x, y: ball3.body.position.y + ball3.radius + 5 }, { x: 0, y: 20 })
+                }
+
+                if (drop2Timer > 2) {
+                    ctx.font = "20px monospace";
+                    ctx.fillText("" + Math.ceil(drop2Timer / 1000), ball2.body.position.x - 30, ball2.body.position.y + 20);
+                    // Draw down arrow.
+                    drawArrow({ x: ball2.body.position.x, y: ball2.body.position.y + ball2.radius + 5 }, { x: 0, y: 20 })
                 }
 
                 ctx.fillText("Score: " + score, 10, 590);
@@ -455,11 +469,35 @@
                 Engine.update(engine, Math.min(Date.now() - prevTime, 1000 / 60));
                 let delta = engine.timing.lastDelta;
 
-                if (dropTimer > 0) {
-                    dropTimer -= delta;
-                    Matter.Body.setPosition(ball3.body, { x: 600, y: 50 });
-                    Matter.Body.setVelocity(ball3.body, { x: 0, y: 0 });
+                if (drop1Timer > 0) {
                     // Q: Why does creating ball3 with isStatic:true, then setting static to false, result in disappearing? A:
+                    Matter.Body.setVelocity(ball3.body, { x: 0, y: 0 });
+                    if (startSequence != "dropping1") {
+                        Matter.Body.setPosition(ball3.body, { x: -100, y: -300 });
+                    }
+                }
+
+                if (drop2Timer > 0) {
+                    Matter.Body.setVelocity(ball2.body, { x: 0, y: 0 });
+                    if (startSequence != "dropping2") {
+                        Matter.Body.setPosition(ball2.body, { x: -100, y: -200 });
+                    }
+                }
+
+                if (startSequence == "dropping1") {
+                    drop1Timer -= delta;
+                    Matter.Body.setPosition(ball3.body, { x: 600, y: 50 });
+                    if (drop1Timer <= 0) {
+                        startSequence = "dropping2";
+                    }
+                } 
+                
+                if (startSequence == "dropping2") {
+                    drop2Timer -= delta;
+                    Matter.Body.setPosition(ball2.body, { x: 200, y: 50 });
+                    if (drop2Timer <= 0) {
+                        startSequence = "done";
+                    }
                 }
 
                 hands.forEach((hand) => {
@@ -529,6 +567,10 @@
                             Matter.Body.setVelocity(hand.has.body, vel);
                             hand.released = hand.has;
                             hand.has = null;
+
+                            if (startSequence === "start") {
+                                startSequence = "dropping1";
+                            }
                         }
                     }
                 });
